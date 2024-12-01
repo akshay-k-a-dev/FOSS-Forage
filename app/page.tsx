@@ -37,67 +37,65 @@ export default function Home() {
   ]
 
   return (
-    <div className="flex flex-col items-center min-h-[100dvh]">
-      <section className="w-full py-6 landscape:py-3 sm:py-12 md:py-16 lg:py-24 bg-background">
-        <div className="container px-4 sm:px-6">
-          <div className="flex flex-col items-center space-y-4 landscape:space-y-2 text-center">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              className="space-y-4 landscape:space-y-2"
-            >
-              <h1 className="text-3xl landscape:text-[1.75rem] font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl/[1.1]">
-                Welcome to the Linux Community Hub
-              </h1>
-              <p className="mx-auto max-w-[700px] text-gray-500 text-base landscape:text-[0.9rem] sm:text-lg md:text-xl dark:text-gray-400">
-                Your gateway to the world of Linux. Learn, share, and grow with our community of enthusiasts and experts.
-              </p>
-            </motion.div>
+    <div className="flex flex-col items-center min-h-screen bg-background">
+      <section className="w-full py-12 md:py-24 lg:py-32 xl:py-40">
+        <div className="container px-4 md:px-6 flex flex-col items-center justify-center min-h-[60vh]">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="space-y-6 text-center max-w-[800px]"
+          >
+            <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl">
+              Welcome to the Linux Community Hub
+            </h1>
+            <p className="mx-auto max-w-[700px] text-muted-foreground text-lg sm:text-xl md:text-2xl">
+              Your gateway to the world of Linux. Learn, share, and grow with our community of enthusiasts and experts.
+            </p>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="flex flex-col landscape:flex-row gap-3 landscape:gap-2 sm:flex-row sm:gap-4 mt-4 landscape:mt-2"
+              className="flex flex-col sm:flex-row justify-center gap-4 min-w-[200px]"
             >
-              <Link href="/login">
+              <Link href="/login" className="w-full sm:w-auto">
                 <Button 
-                  size="lg" 
-                  className="w-full landscape:w-auto landscape:h-9 landscape:text-[0.9rem] sm:w-auto min-w-[140px] landscape:min-w-[120px]"
+                  size="lg"
+                  className="w-full sm:w-auto text-lg font-semibold"
                 >
                   Get Started
                 </Button>
               </Link>
               <Button 
-                size="lg" 
-                variant="outline" 
-                className="w-full landscape:w-auto landscape:h-9 landscape:text-[0.9rem] sm:w-auto min-w-[140px] landscape:min-w-[120px]"
+                size="lg"
+                variant="outline"
+                className="w-full sm:w-auto text-lg font-semibold"
               >
                 Join Community
               </Button>
             </motion.div>
-          </div>
+          </motion.div>
         </div>
       </section>
 
-      <section ref={ref} className="w-full py-6 landscape:py-3 sm:py-12 md:py-16 lg:py-24 bg-secondary">
-        <div className="container px-4 sm:px-6">
+      <section ref={ref} className="w-full py-12 md:py-24 bg-muted/50">
+        <div className="container px-4 md:px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={inView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.6 }}
-            className="grid grid-cols-1 landscape:grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 landscape:gap-2 sm:gap-6"
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8"
           >
             {features.map((feature, index) => (
-              <Card key={index} className="bg-background landscape:min-h-0">
-                <CardHeader className="space-y-2 landscape:space-y-1.5 pb-3 landscape:p-3">
-                  <div className="p-2 landscape:p-1.5 w-fit rounded-lg bg-primary/10">
+              <Card key={index} className="bg-card border-2 hover:border-primary/20 transition-all duration-200">
+                <CardHeader className="space-y-2">
+                  <div className="p-2 w-fit rounded-xl bg-primary/10">
                     {feature.icon}
                   </div>
-                  <CardTitle className="text-xl landscape:text-base">{feature.title}</CardTitle>
+                  <CardTitle className="text-2xl font-bold">{feature.title}</CardTitle>
                 </CardHeader>
-                <CardContent className="landscape:p-3 landscape:pt-0">
-                  <CardDescription className="text-sm landscape:text-xs sm:text-base">{feature.description}</CardDescription>
+                <CardContent>
+                  <CardDescription className="text-base text-muted-foreground">{feature.description}</CardDescription>
                 </CardContent>
               </Card>
             ))}
