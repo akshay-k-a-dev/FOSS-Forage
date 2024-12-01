@@ -30,7 +30,7 @@ Imagine a place where:
 - **Framer Motion**: Animations that'll make your UI do backflips
 - **TypeScript**: Because who doesn't love extra paperwork? 🙃
 
-## 🌈 Responsive Design Levels
+## 🙈 Responsive Design Levels
 
 - **Desktop**: Full-screen nerd mode
 - **Tablet**: Couch coding champion
