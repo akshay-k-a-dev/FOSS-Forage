@@ -69,10 +69,82 @@ function getTypeFromRepo(repo: any): string {
 
 export async function fetchAllResources(): Promise<Resource[]> {
   try {
-    // Only fetch top starred repos to stay within limits
-    const toolsData = await fetchGithubRepos('stars:>5000');
+    // Comprehensive list of queries covering various open source categories
+    const queries = [
+      // Operating Systems
+      'topic:linux stars:>100',
+      'topic:unix stars:>100',
+      'topic:bsd stars:>100',
+      
+      // Development Tools
+      'topic:ide stars:>100',
+      'topic:text-editor stars:>100',
+      'topic:terminal stars:>100',
+      'topic:shell stars:>100',
+      
+      // Programming Languages
+      'topic:programming-language stars:>100',
+      'topic:compiler stars:>100',
+      'topic:interpreter stars:>100',
+      
+      // Web Development
+      'topic:web-framework stars:>100',
+      'topic:javascript-framework stars:>100',
+      'topic:css-framework stars:>100',
+      
+      // Backend & Infrastructure
+      'topic:database stars:>100',
+      'topic:server stars:>100',
+      'topic:container stars:>100',
+      'topic:kubernetes stars:>100',
+      
+      // Security
+      'topic:security-tools stars:>100',
+      'topic:encryption stars:>100',
+      'topic:authentication stars:>100',
+      
+      // AI & Data Science
+      'topic:machine-learning stars:>100',
+      'topic:data-science stars:>100',
+      'topic:deep-learning stars:>100',
+      
+      // Mobile Development
+      'topic:android stars:>100',
+      'topic:ios stars:>100',
+      'topic:cross-platform stars:>100',
+      
+      // Game Development
+      'topic:game-engine stars:>100',
+      'topic:game-development stars:>100',
+      
+      // Desktop Applications
+      'topic:desktop-app stars:>100',
+      'topic:gui stars:>100',
+      'topic:desktop-environment stars:>100',
+      
+      // System Tools
+      'topic:system-tools stars:>100',
+      'topic:monitoring stars:>100',
+      'topic:package-manager stars:>100',
+      
+      // Documentation & Learning
+      'topic:documentation stars:>100',
+      'topic:tutorial stars:>100',
+      'topic:learning-resources stars:>100'
+    ];
+
+    // Fetch all queries in parallel with a small delay between each
+    const allResults = await Promise.all(
+      queries.map(async (query, index) => {
+        await delay(index * 500); // Reduced delay to 500ms between requests
+        return fetchGithubRepos(query);
+      })
+    );
+
+    // Combine all results
+    const toolsData = allResults.flat();
     
-    // Remove duplicates and format
+    // Remove duplicates but keep all valid resources
     const seen = new Set<string>();
     return toolsData
       .filter(resource => {
@@ -89,9 +161,9 @@ export async function fetchAllResources(): Promise<Resource[]> {
         link: resource.link || '',
         category: resource.category || 'Development Tools',
         type: resource.type || 'tool',
-        tags: resource.tags || []
+        tags: [...(resource.tags || []), 'open-source'].filter((tag, i, arr) => arr.indexOf(tag) === i)
       }))
-      .slice(0, 50); // Limit to 50 top resources
+      .sort((a, b) => (b.tags?.length || 0) - (a.tags?.length || 0)); // Sort by relevance but don't limit the number
   } catch (error) {
     console.error('Error fetching resources:', error);
     return [];
