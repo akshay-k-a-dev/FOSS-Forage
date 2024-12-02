@@ -21,35 +21,23 @@ interface Discussion {
   category: { name: string }
 }
 
-export async function generateStaticParams() {
-  try {
-    // Fetch all discussion IDs from your API
-    const response = await fetch('https://thelinuxcommunityhub.org/api/discussions');
-    const discussions = await response.json();
-    
-    // Return an array of objects with id parameter
-    return discussions.map((discussion: { _id: string }) => ({
-      id: discussion._id.toString(),
-    }));
-  } catch (error) {
-    // If fetching fails, return an empty array or some default IDs
-    console.error('Error generating static params:', error);
-    return [{ id: '1' }]; // Provide at least one default ID
-  }
+interface Props {
+  initialDiscussion: Discussion
+  params: { discussionId: string }
 }
 
-export default function DiscussionPage({ params }: { params: { id: string } }) {
+export default function ClientPage({ initialDiscussion, params }: Props) {
   const router = useRouter()
   const { isAuthenticated } = useAuth()
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [replyLoading, setReplyLoading] = useState(false)
-  const [discussion, setDiscussion] = useState<Discussion | null>(null);
-  const [replyContent, setReplyContent] = useState("");
+  const [discussion, setDiscussion] = useState<Discussion>(initialDiscussion)
+  const [replyContent, setReplyContent] = useState("")
 
   useEffect(() => {
     const fetchDiscussion = async () => {
       try {
-        const response = await fetch(`/api/discussions/${params.id}`);
+        const response = await fetch(`/api/discussions/${params.discussionId}`);
         if (!response.ok) {
           throw new Error('Failed to fetch discussion');
         }
@@ -64,7 +52,7 @@ export default function DiscussionPage({ params }: { params: { id: string } }) {
     };
 
     fetchDiscussion();
-  }, [params.id]);
+  }, [params.discussionId]);
 
   const handleAddReply = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,7 +70,7 @@ export default function DiscussionPage({ params }: { params: { id: string } }) {
 
     try {
       setReplyLoading(true);
-      const response = await fetch(`/api/discussions/${params.id}/replies`, {
+      const response = await fetch(`/api/discussions/${params.discussionId}/replies`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -96,10 +84,10 @@ export default function DiscussionPage({ params }: { params: { id: string } }) {
 
       const newReply = await response.json();
       
-      setDiscussion(prev => prev ? {
-        ...prev,
-        replies: [...prev.replies, newReply]
-      } : null);
+      setDiscussion({
+        ...discussion,
+        replies: [...discussion.replies, newReply]
+      });
       
       setReplyContent("");
       toast.success('Reply added successfully!');

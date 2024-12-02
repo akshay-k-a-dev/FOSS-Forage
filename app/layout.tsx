@@ -6,12 +6,26 @@ import { Navigation } from '@/components/navigation';
 import { Footer } from '@/components/footer';
 import { Toaster } from 'sonner';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ 
+  subsets: ['latin'],
+  display: 'swap',
+  preload: true,
+  variable: '--font-inter',
+});
 
 export const metadata: Metadata = {
   title: 'Linux Community Hub',
   description: 'A community-driven platform for Linux enthusiasts, developers, and learners',
   keywords: ['Linux', 'Community', 'Open Source', 'Programming', 'Tutorials', 'Forum'],
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+  },
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: 'white' },
+    { media: '(prefers-color-scheme: dark)', color: 'black' },
+  ],
 };
 
 export default function RootLayout({
@@ -20,10 +34,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <div className="flex min-h-screen flex-col">
+    <html lang="en" suppressHydrationWarning className={inter.variable}>
+      <body className="min-h-screen bg-background font-sans antialiased">
+        <ThemeProvider 
+          attribute="class" 
+          defaultTheme="system" 
+          enableSystem 
+          disableTransitionOnChange
+        >
+          <div className="relative flex min-h-screen flex-col">
             <Navigation />
             <main className="flex-1">{children}</main>
             <Footer />

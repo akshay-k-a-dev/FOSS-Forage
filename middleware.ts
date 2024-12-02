@@ -9,7 +9,8 @@ const KNOWN_ROUTES = [
   '/register',
   '/forum',
   '/forgot-password',
-  // Add other valid routes here
+  '/campus',
+  '/signup'
 ]
 
 export function middleware(request: NextRequest) {
@@ -23,12 +24,14 @@ export function middleware(request: NextRequest) {
   // Check if the path is requesting an API route or static file
   const isApiRoute = path.startsWith('/api/')
   const isStaticFile = path.includes('.')
+  const isNextInternal = path.startsWith('/_next/')
 
-  // If it's not a known route, API route, or static file, redirect to 404
-  if (!isKnownRoute && !isApiRoute && !isStaticFile) {
-    return NextResponse.redirect(new URL('/404', request.url))
+  // Allow all known routes, API routes, static files, and Next.js internal routes
+  if (isKnownRoute || isApiRoute || isStaticFile || isNextInternal) {
+    return NextResponse.next()
   }
 
+  // For unknown routes, let Next.js handle it with the not-found page
   return NextResponse.next()
 }
 
