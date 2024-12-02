@@ -66,13 +66,15 @@ export default function Home() {
                   Get Started
                 </Button>
               </Link>
-              <Button 
-                size="lg"
-                variant="outline"
-                className="w-full sm:w-auto text-lg font-semibold"
-              >
-                Join Community
-              </Button>
+              <Link href="/forum" className="w-full sm:w-auto">
+                <Button 
+                  size="lg"
+                  variant="outline"
+                  className="w-full sm:w-auto text-lg font-semibold"
+                >
+                  Join Community
+                </Button>
+              </Link>
             </motion.div>
           </motion.div>
         </div>

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { motion } from "framer-motion"
 import { useInView } from "react-intersection-observer"
 
-export default function AboutPage() {
+export default function AboutPageClient() {
   const [ref, inView] = useInView({
     triggerOnce: true,
     threshold: 0.1,
@@ -52,53 +52,30 @@ export default function AboutPage() {
         <h2 className="text-2xl md:text-3xl font-semibold mb-6">Our Values</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 lg:gap-8 mb-12">
           <div className="transform transition-transform hover:scale-105">
-            <div className="p-6 border rounded-lg shadow-sm hover:shadow-md transition-shadow">
+            <div className="p-6">
               <h3 className="text-xl font-semibold mb-2">Inclusivity</h3>
               <p className="text-muted-foreground">We welcome everyone regardless of their experience level or background.</p>
             </div>
           </div>
           <div className="transform transition-transform hover:scale-105">
-            <div className="p-6 border rounded-lg shadow-sm hover:shadow-md transition-shadow">
+            <div className="p-6">
               <h3 className="text-xl font-semibold mb-2">Knowledge Sharing</h3>
               <p className="text-muted-foreground">We believe in freely sharing knowledge and helping others learn.</p>
             </div>
           </div>
           <div className="transform transition-transform hover:scale-105">
-            <div className="p-6 border rounded-lg shadow-sm hover:shadow-md transition-shadow">
+            <div className="p-6">
               <h3 className="text-xl font-semibold mb-2">Innovation</h3>
               <p className="text-muted-foreground">We encourage creative solutions and embrace new technologies.</p>
             </div>
           </div>
           <div className="transform transition-transform hover:scale-105">
-            <div className="p-6 border rounded-lg shadow-sm hover:shadow-md transition-shadow">
+            <div className="p-6">
               <h3 className="text-xl font-semibold mb-2">Open Source</h3>
               <p className="text-muted-foreground">We're committed to the open source philosophy and transparency.</p>
             </div>
           </div>
         </div>
-
-        {/* What We Offer Section */}
-        <h2 className="text-2xl md:text-3xl font-semibold mb-4">What We Offer</h2>
-        <div className="space-y-4 mb-8">
-          <div className="flex items-start bg-secondary/20 p-4 rounded-lg transform transition-transform hover:scale-105">
-            <span className="font-medium mr-4 text-xl md:text-2xl">📚</span>
-            <span className="text-base md:text-lg">Comprehensive tutorials and guides for all skill levels</span>
-          </div>
-          <div className="flex items-start bg-secondary/20 p-4 rounded-lg transform transition-transform hover:scale-105">
-            <span className="font-medium mr-4 text-xl md:text-2xl">💬</span>
-            <span className="text-base md:text-lg">Active discussion forums for knowledge sharing and problem-solving</span>
-          </div>
-          <div className="flex items-start bg-secondary/20 p-4 rounded-lg transform transition-transform hover:scale-105">
-            <span className="font-medium mr-4 text-xl md:text-2xl">📰</span>
-            <span className="text-base md:text-lg">Regular news updates about the Linux ecosystem</span>
-          </div>
-          <div className="flex items-start bg-secondary/20 p-4 rounded-lg transform transition-transform hover:scale-105">
-            <span className="font-medium mr-4 text-xl md:text-2xl">🎯</span>
-            <span className="text-base md:text-lg">Community events and collaborative learning opportunities</span>
-          </div>
-        </div>
-
-        <Separator className="my-12" />
 
         <div className="bg-secondary/20 p-6 md:p-8 lg:p-10 rounded-lg text-center mb-8">
           <h2 className="text-2xl md:text-3xl font-semibold mb-4">Join Our Community</h2>
