@@ -21,6 +21,23 @@ interface Discussion {
   category: { name: string }
 }
 
+export async function generateStaticParams() {
+  try {
+    // Fetch all discussion IDs from your API
+    const response = await fetch('https://thelinuxcommunityhub.org/api/discussions');
+    const discussions = await response.json();
+    
+    // Return an array of objects with id parameter
+    return discussions.map((discussion: { _id: string }) => ({
+      id: discussion._id.toString(),
+    }));
+  } catch (error) {
+    // If fetching fails, return an empty array or some default IDs
+    console.error('Error generating static params:', error);
+    return [{ id: '1' }]; // Provide at least one default ID
+  }
+}
+
 export default function DiscussionPage({ params }: { params: { id: string } }) {
   const router = useRouter()
   const { isAuthenticated } = useAuth()
