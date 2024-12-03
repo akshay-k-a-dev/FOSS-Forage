@@ -15,6 +15,7 @@ export default function ResourcesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [retryIn, setRetryIn] = useState<number | null>(null);
 
   useEffect(() => {
     async function loadResources() {
@@ -69,9 +70,39 @@ export default function ResourcesPage() {
     } catch (error) {
       console.error('Failed to refresh resources:', error);
       setError('Failed to refresh resources. Using fallback data.');
+      
+      // Check if it's a rate limit error and set retry timer
+      if (error instanceof Error && error.message.includes('rate limit')) {
+        const resetTime = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+        startCountdown(resetTime);
+      }
     } finally {
       setRefreshing(false);
     }
+  };
+
+  const startCountdown = (resetTime: Date) => {
+    const updateCountdown = () => {
+      const now = new Date();
+      const timeLeft = resetTime.getTime() - now.getTime();
+      
+      if (timeLeft > 0) {
+        const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+        const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+        
+        setRetryIn(timeLeft);
+        setError(`Rate limit exceeded. Retry in ${hours}h ${minutes}m ${seconds}s`);
+        
+        const timer = setTimeout(updateCountdown, 1000);
+        return () => clearTimeout(timer);
+      } else {
+        setRetryIn(null);
+        setError(null);
+      }
+    };
+
+    updateCountdown();
   };
 
   // Filter resources based on search and filters
@@ -100,7 +131,7 @@ export default function ResourcesPage() {
             <h1 className="text-4xl font-bold">Open Source Resources</h1>
             <button
               onClick={handleRefresh}
-              disabled={refreshing}
+              disabled={refreshing || !!retryIn}
               className="px-4 py-2 border rounded-lg disabled:opacity-50"
             >
               <FiRefreshCw className="h-4 w-4" />

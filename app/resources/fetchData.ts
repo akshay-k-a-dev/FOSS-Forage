@@ -75,8 +75,39 @@ const SEARCH_CATEGORIES = [
   }
 ];
 
+// Rate limit tracking
+let rateLimitResetTime: number | null = null;
+let retryCount = 0;
+
+function shouldRetry(error: any): boolean {
+  // Check if it's a rate limit error
+  return error.response && 
+         error.response.status === 403 && 
+         error.response.headers['x-ratelimit-remaining'] === '0';
+}
+
+function extractRateLimitResetTime(headers: any): number | null {
+  const resetTimestamp = headers['x-ratelimit-reset'];
+  return resetTimestamp ? parseInt(resetTimestamp, 10) * 1000 : null;
+}
+
+async function waitForRateLimitReset() {
+  if (!rateLimitResetTime) return;
+
+  const currentTime = Date.now();
+  const waitTime = rateLimitResetTime - currentTime;
+
+  if (waitTime > 0) {
+    console.log(`Rate limit hit. Waiting until ${new Date(rateLimitResetTime).toLocaleString()}`);
+    await new Promise(resolve => setTimeout(resolve, waitTime));
+  }
+}
+
 async function fetchGithubRepos(query: string, category: string, page: number = 1): Promise<Partial<Resource>[]> {
   try {
+    // Wait if we've hit a previous rate limit
+    await waitForRateLimitReset();
+
     const rateLimit = await checkRateLimit();
     if (rateLimit < 2) {
       throw new Error('RATE_LIMIT_REACHED');
@@ -97,6 +128,9 @@ async function fetchGithubRepos(query: string, category: string, page: number = 
     });
 
     await delay(2000);
+
+    // Reset retry count on successful fetch
+    retryCount = 0;
 
     if (!response.data?.items?.length) {
       return [];
@@ -121,6 +155,23 @@ async function fetchGithubRepos(query: string, category: string, page: number = 
         ].filter((tag): tag is string => typeof tag === 'string')
       }));
   } catch (error) {
+    // Handle rate limit
+    if (axios.isAxiosError(error) && shouldRetry(error)) {
+      // Extract reset time from headers
+      rateLimitResetTime = extractRateLimitResetTime(error.response?.headers || {});
+      
+      // Implement exponential backoff
+      if (retryCount < MAX_RETRIES) {
+        retryCount++;
+        const backoffTime = Math.pow(2, retryCount) * 1000;
+        console.log(`Backing off for ${backoffTime}ms. Retry ${retryCount}`);
+        await new Promise(resolve => setTimeout(resolve, backoffTime));
+        
+        // Retry the fetch
+        return fetchGithubRepos(query, category, page);
+      }
+    }
+
     if (axios.isAxiosError(error)) {
       if (error.response?.status === 403) {
         throw new Error('RATE_LIMIT_EXCEEDED');
