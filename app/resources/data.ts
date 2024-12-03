@@ -4,7 +4,10 @@ export interface Resource {
   description: string;
   link: string;
   category: string;
-  type: string;
+  type: 'tool' | 'framework' | 'library';
+  stars?: number;
+  dateAdded?: string;
+  lastChecked?: string;
   tags: string[];
 }
 
@@ -18,6 +21,8 @@ export const fallbackResources: Resource[] = [
     link: 'https://github.com/facebook/react',
     category: 'Frontend Development',
     type: 'framework',
+    dateAdded: '',
+    lastChecked: '',
     tags: ['javascript', 'ui', 'frontend', 'spa']
   },
   {
@@ -27,6 +32,8 @@ export const fallbackResources: Resource[] = [
     link: 'https://github.com/vercel/next.js',
     category: 'Frontend Development',
     type: 'framework',
+    dateAdded: '',
+    lastChecked: '',
     tags: ['react', 'framework', 'ssr', 'frontend']
   },
   {
@@ -36,6 +43,8 @@ export const fallbackResources: Resource[] = [
     link: 'https://github.com/vuejs/core',
     category: 'Frontend Development',
     type: 'framework',
+    dateAdded: '',
+    lastChecked: '',
     tags: ['javascript', 'frontend', 'spa']
   },
   {
@@ -45,6 +54,8 @@ export const fallbackResources: Resource[] = [
     link: 'https://github.com/angular/angular',
     category: 'Frontend Development',
     type: 'framework',
+    dateAdded: '',
+    lastChecked: '',
     tags: ['typescript', 'frontend', 'google']
   },
 
@@ -56,6 +67,8 @@ export const fallbackResources: Resource[] = [
     link: 'https://github.com/spring-projects/spring-boot',
     category: 'Backend Development',
     type: 'framework',
+    dateAdded: '',
+    lastChecked: '',
     tags: ['java', 'spring', 'enterprise']
   },
   {
@@ -65,6 +78,8 @@ export const fallbackResources: Resource[] = [
     link: 'https://github.com/django/django',
     category: 'Backend Development',
     type: 'framework',
+    dateAdded: '',
+    lastChecked: '',
     tags: ['python', 'web', 'orm']
   },
   {
@@ -74,6 +89,8 @@ export const fallbackResources: Resource[] = [
     link: 'https://github.com/expressjs/express',
     category: 'Backend Development',
     type: 'framework',
+    dateAdded: '',
+    lastChecked: '',
     tags: ['nodejs', 'javascript', 'web']
   },
 
@@ -85,6 +102,8 @@ export const fallbackResources: Resource[] = [
     link: 'https://github.com/flutter/flutter',
     category: 'Mobile Development',
     type: 'framework',
+    dateAdded: '',
+    lastChecked: '',
     tags: ['dart', 'mobile', 'cross-platform']
   },
   {
@@ -94,6 +113,8 @@ export const fallbackResources: Resource[] = [
     link: 'https://github.com/facebook/react-native',
     category: 'Mobile Development',
     type: 'framework',
+    dateAdded: '',
+    lastChecked: '',
     tags: ['react', 'mobile', 'javascript']
   },
   {
@@ -102,7 +123,9 @@ export const fallbackResources: Resource[] = [
     description: 'Modern programming language for Android development',
     link: 'https://github.com/JetBrains/kotlin',
     category: 'Mobile Development',
-    type: 'language',
+    type: 'library',
+    dateAdded: '',
+    lastChecked: '',
     tags: ['android', 'jvm', 'mobile']
   },
 
@@ -113,7 +136,9 @@ export const fallbackResources: Resource[] = [
     description: 'Production-Grade Container Orchestration',
     link: 'https://github.com/kubernetes/kubernetes',
     category: 'Cloud Native',
-    type: 'platform',
+    type: 'tool',
+    dateAdded: '',
+    lastChecked: '',
     tags: ['containers', 'orchestration', 'cloud']
   },
   {
@@ -122,7 +147,9 @@ export const fallbackResources: Resource[] = [
     description: 'Container platform for building, sharing, and running applications',
     link: 'https://github.com/docker/docker-ce',
     category: 'Cloud Native',
-    type: 'platform',
+    type: 'tool',
+    dateAdded: '',
+    lastChecked: '',
     tags: ['containers', 'virtualization']
   },
 
@@ -134,6 +161,8 @@ export const fallbackResources: Resource[] = [
     link: 'https://github.com/jenkinsci/jenkins',
     category: 'DevOps & CI/CD',
     type: 'tool',
+    dateAdded: '',
+    lastChecked: '',
     tags: ['automation', 'ci-cd', 'java']
   },
   {
@@ -143,6 +172,8 @@ export const fallbackResources: Resource[] = [
     link: 'https://github.com/features/actions',
     category: 'DevOps & CI/CD',
     type: 'tool',
+    dateAdded: '',
+    lastChecked: '',
     tags: ['automation', 'ci-cd', 'github']
   },
 
@@ -154,6 +185,8 @@ export const fallbackResources: Resource[] = [
     link: 'https://github.com/zaproxy/zaproxy',
     category: 'Security & Compliance',
     type: 'tool',
+    dateAdded: '',
+    lastChecked: '',
     tags: ['security', 'testing', 'scanner']
   },
   {
@@ -163,6 +196,8 @@ export const fallbackResources: Resource[] = [
     link: 'https://github.com/hashicorp/vault',
     category: 'Security & Compliance',
     type: 'tool',
+    dateAdded: '',
+    lastChecked: '',
     tags: ['security', 'secrets', 'encryption']
   },
 
@@ -173,7 +208,9 @@ export const fallbackResources: Resource[] = [
     description: 'Open source platform for machine learning',
     link: 'https://github.com/tensorflow/tensorflow',
     category: 'Data & AI',
-    type: 'framework',
+    type: 'library',
+    dateAdded: '',
+    lastChecked: '',
     tags: ['machine-learning', 'ai', 'python']
   },
   {
@@ -182,7 +219,9 @@ export const fallbackResources: Resource[] = [
     description: 'Machine learning framework for Python',
     link: 'https://github.com/pytorch/pytorch',
     category: 'Data & AI',
-    type: 'framework',
+    type: 'library',
+    dateAdded: '',
+    lastChecked: '',
     tags: ['machine-learning', 'ai', 'python']
   },
 
@@ -194,6 +233,8 @@ export const fallbackResources: Resource[] = [
     link: 'https://github.com/microsoft/vscode',
     category: 'Development Tools',
     type: 'tool',
+    dateAdded: '',
+    lastChecked: '',
     tags: ['editor', 'ide', 'microsoft']
   },
   {
@@ -203,6 +244,8 @@ export const fallbackResources: Resource[] = [
     link: 'https://github.com/git/git',
     category: 'Development Tools',
     type: 'tool',
+    dateAdded: '',
+    lastChecked: '',
     tags: ['version-control', 'cli']
   }
 ];

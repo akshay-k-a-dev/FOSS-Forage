@@ -1,171 +1,202 @@
 import axios from 'axios';
 import { Resource } from './data';
+import { BrowserCache } from '../utils/cache';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function fetchGithubRepos(query: string): Promise<Partial<Resource>[]> {
-  try {
-    await delay(2000); // Wait 2 seconds between requests
-    const response = await axios.get(
-      `https://api.github.com/search/repositories?q=${encodeURIComponent(query)}&sort=stars&order=desc`,
-      {
-        headers: {
-          'Accept': 'application/vnd.github.v3+json'
-        }
-      }
-    );
+const DESCRIPTION_MAX_LENGTH = 200;
+const RESOURCES_CACHE_KEY = 'resources_cache';
+const RESOURCES_CACHE_DURATION = 12 * 60 * 60 * 1000; // 12 hours
+const RESOURCE_CHECK_INTERVAL = 12 * 60 * 60 * 1000; // 12 hours
 
-    const { items = [] } = response.data;
-    return items.map((repo: any) => ({
-      id: `gh_${repo.id}`,
-      title: repo.name,
-      description: repo.description || '',
-      link: repo.html_url,
-      category: getCategoryFromRepo(repo),
-      type: getTypeFromRepo(repo),
-      tags: [...(repo.topics || []), repo.language].filter(Boolean)
-    }));
-  } catch (error: any) {
-    if (error.response?.status === 403) {
-      console.error('Rate limit exceeded, waiting...');
-      await delay(10000); // Wait 10 seconds if rate limited
+interface GitHubRepo {
+  name: string;
+  description: string | null;
+  html_url: string;
+  stargazers_count: number;
+  topics: string[];
+  language: string | null;
+}
+
+interface GitHubResponse {
+  items: GitHubRepo[];
+}
+
+function truncateDescription(description: string): string {
+  if (!description) return '';
+  if (description.length <= DESCRIPTION_MAX_LENGTH) return description;
+  
+  const lastSpace = description.lastIndexOf(' ', DESCRIPTION_MAX_LENGTH);
+  return lastSpace > 0 ? description.slice(0, lastSpace) + '...' : description.slice(0, DESCRIPTION_MAX_LENGTH) + '...';
+}
+
+const MAX_RETRIES = 3;
+const TARGET_RESOURCES = 600;
+const RESOURCES_PER_PAGE = 100;
+const PAGES_NEEDED = 2;
+const RATE_LIMIT_WAIT = 60000;
+const MIN_ACCEPTABLE_RESOURCES = 100;
+
+const SEARCH_CATEGORIES = [
+  {
+    query: 'stars:>10000 language:javascript framework NOT deprecated NOT archived',
+    category: 'Frontend Development'
+  },
+  {
+    query: 'stars:>10000 language:typescript framework NOT deprecated NOT archived',
+    category: 'Frontend Development'
+  },
+  {
+    query: 'stars:>5000 language:python web framework NOT deprecated NOT archived',
+    category: 'Backend Development'
+  },
+  {
+    query: 'stars:>5000 language:java spring boot NOT deprecated NOT archived',
+    category: 'Backend Development'
+  },
+  {
+    query: 'stars:>5000 react-native OR flutter mobile NOT deprecated NOT archived',
+    category: 'Mobile Development'
+  },
+  {
+    query: 'stars:>5000 terraform OR ansible devops NOT deprecated NOT archived',
+    category: 'DevOps & CI/CD'
+  },
+  {
+    query: 'stars:>5000 kubernetes helm cloud NOT deprecated NOT archived',
+    category: 'Cloud Native'
+  },
+  {
+    query: 'stars:>3000 security penetration-testing NOT deprecated NOT archived',
+    category: 'Security & Compliance'
+  }
+];
+
+async function fetchGithubRepos(query: string, category: string, page: number = 1): Promise<Partial<Resource>[]> {
+  try {
+    const rateLimit = await checkRateLimit();
+    if (rateLimit < 2) {
+      throw new Error('RATE_LIMIT_REACHED');
+    }
+
+    const response = await axios.get<GitHubResponse>('https://api.github.com/search/repositories', {
+      params: {
+        q: query,
+        sort: 'stars',
+        order: 'desc',
+        per_page: RESOURCES_PER_PAGE,
+        page: page
+      },
+      headers: {
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'Resource-Fetcher'
+      }
+    });
+
+    await delay(2000);
+
+    if (!response.data?.items?.length) {
       return [];
     }
-    console.error('GitHub API error:', error.message);
-    return [];
+
+    return response.data.items
+      .filter(repo => !repo.archived && !repo.disabled && !repo.fork)
+      .map(repo => ({
+        id: repo.html_url,
+        title: repo.name,
+        description: truncateDescription(repo.description || `A ${category.toLowerCase()} resource`),
+        link: repo.html_url,
+        category,
+        type: determineResourceType(repo),
+        stars: repo.stargazers_count,
+        dateAdded: new Date().toISOString(),
+        lastChecked: new Date().toISOString(),
+        tags: [...new Set([
+          ...(repo.topics || []),
+          repo.language?.toLowerCase(),
+          category.toLowerCase()
+        ])].filter(Boolean)
+      }));
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      if (error.response?.status === 403) {
+        throw new Error('RATE_LIMIT_EXCEEDED');
+      }
+      if (error.response?.status === 422) {
+        console.warn(`Search query too broad: ${query}`);
+        return [];
+      }
+      console.error(`GitHub API error (${error.response?.status}):`, error.response?.data?.message || error.message);
+    }
+    throw error;
   }
 }
 
-function getCategoryFromRepo(repo: any): string {
-  const languageMap: { [key: string]: string } = {
-    'JavaScript': 'Frontend Development',
-    'TypeScript': 'Frontend Development',
-    'Java': 'Backend Development',
-    'Kotlin': 'Backend Development',
-    'Swift': 'Mobile Development',
-    'Dart': 'Mobile Development',
-    'Go': 'Backend Development',
-    'Python': 'Backend Development',
-    'Rust': 'Systems Development'
-  };
+async function fetchResourcesWithRetry(): Promise<Resource[]> {
+  let allResources: Partial<Resource>[] = [];
+  let categoryIndex = 0;
 
-  if (repo.topics?.includes('frontend')) return 'Frontend Development';
-  if (repo.topics?.includes('backend')) return 'Backend Development';
-  if (repo.topics?.includes('mobile')) return 'Mobile Development';
-  if (repo.topics?.includes('devops')) return 'DevOps & CI/CD';
-  if (repo.topics?.includes('security')) return 'Security & Compliance';
-  if (repo.topics?.includes('ai')) return 'Data & AI';
-  
-  return languageMap[repo.language] || 'Development Tools';
+  while (categoryIndex < SEARCH_CATEGORIES.length && allResources.length < TARGET_RESOURCES) {
+    const { query, category } = SEARCH_CATEGORIES[categoryIndex];
+    let retryCount = 0;
+
+    while (retryCount < MAX_RETRIES) {
+      try {
+        for (let page = 1; page <= PAGES_NEEDED; page++) {
+          const results = await fetchGithubRepos(query, category, page);
+          allResources.push(...results);
+        }
+        break; // Break retry loop on success
+      } catch (error) {
+        console.error(`Retry ${retryCount + 1} failed for category ${category}`, error);
+        retryCount++;
+        if (retryCount >= MAX_RETRIES) {
+          console.warn(`Max retries reached for ${category}`);
+        }
+        await delay(5000);
+      }
+    }
+    categoryIndex++;
+  }
+
+  return allResources as Resource[];
 }
 
-function getTypeFromRepo(repo: any): string {
-  if (repo.topics?.includes('framework')) return 'framework';
-  if (repo.topics?.includes('library')) return 'library';
-  if (repo.topics?.includes('tool')) return 'tool';
-  if (repo.topics?.includes('platform')) return 'platform';
+async function checkRateLimit(): Promise<number> {
+  try {
+    const response = await axios.get('https://api.github.com/rate_limit');
+    return response.data.rate.remaining;
+  } catch (error) {
+    console.error('Error checking rate limit:', error);
+    return 0;
+  }
+}
+
+function determineResourceType(repo: GitHubRepo): Resource['type'] {
+  const name = repo.name.toLowerCase();
+  const description = (repo.description || '').toLowerCase();
+  const topics = repo.topics.map(t => t.toLowerCase());
+
+  if (topics.includes('framework') || name.includes('framework') || description.includes('framework')) {
+    return 'framework';
+  }
+  if (topics.includes('library') || name.includes('lib') || description.includes('library')) {
+    return 'library';
+  }
   return 'tool';
 }
 
 export async function fetchAllResources(): Promise<Resource[]> {
+  const cache = new BrowserCache();
   try {
-    // Comprehensive list of queries covering various open source categories
-    const queries = [
-      // Operating Systems
-      'topic:linux stars:>100',
-      'topic:unix stars:>100',
-      'topic:bsd stars:>100',
-      
-      // Development Tools
-      'topic:ide stars:>100',
-      'topic:text-editor stars:>100',
-      'topic:terminal stars:>100',
-      'topic:shell stars:>100',
-      
-      // Programming Languages
-      'topic:programming-language stars:>100',
-      'topic:compiler stars:>100',
-      'topic:interpreter stars:>100',
-      
-      // Web Development
-      'topic:web-framework stars:>100',
-      'topic:javascript-framework stars:>100',
-      'topic:css-framework stars:>100',
-      
-      // Backend & Infrastructure
-      'topic:database stars:>100',
-      'topic:server stars:>100',
-      'topic:container stars:>100',
-      'topic:kubernetes stars:>100',
-      
-      // Security
-      'topic:security-tools stars:>100',
-      'topic:encryption stars:>100',
-      'topic:authentication stars:>100',
-      
-      // AI & Data Science
-      'topic:machine-learning stars:>100',
-      'topic:data-science stars:>100',
-      'topic:deep-learning stars:>100',
-      
-      // Mobile Development
-      'topic:android stars:>100',
-      'topic:ios stars:>100',
-      'topic:cross-platform stars:>100',
-      
-      // Game Development
-      'topic:game-engine stars:>100',
-      'topic:game-development stars:>100',
-      
-      // Desktop Applications
-      'topic:desktop-app stars:>100',
-      'topic:gui stars:>100',
-      'topic:desktop-environment stars:>100',
-      
-      // System Tools
-      'topic:system-tools stars:>100',
-      'topic:monitoring stars:>100',
-      'topic:package-manager stars:>100',
-      
-      // Documentation & Learning
-      'topic:documentation stars:>100',
-      'topic:tutorial stars:>100',
-      'topic:learning-resources stars:>100'
-    ];
+    const cachedResources = await cache.get<Resource[]>(RESOURCES_CACHE_KEY);
+    if (cachedResources) return cachedResources;
 
-    // Fetch all queries in parallel with a small delay between each
-    const allResults = await Promise.all(
-      queries.map(async (query, index) => {
-        await delay(index * 500); // Reduced delay to 500ms between requests
-        return fetchGithubRepos(query);
-      })
-    );
-
-    // Combine all results
-    const toolsData = allResults.flat();
-    
-    // Remove duplicates but keep all valid resources
-    const seen = new Set<string>();
-    return toolsData
-      .filter(resource => {
-        if (!resource.title) return false;
-        const key = resource.title.toLowerCase();
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .map((resource, index) => ({
-        id: resource.id || index.toString(),
-        title: resource.title!,
-        description: resource.description || '',
-        link: resource.link || '',
-        category: resource.category || 'Development Tools',
-        type: resource.type || 'tool',
-        tags: [...(resource.tags || []), 'open-source'].filter((tag, i, arr) => arr.indexOf(tag) === i)
-      }))
-      .sort((a, b) => (b.tags?.length || 0) - (a.tags?.length || 0)); // Sort by relevance but don't limit the number
+    const resources = await fetchResourcesWithRetry();
+    await cache.set(RESOURCES_CACHE_KEY, resources, RESOURCES_CACHE_DURATION);
+    return resources;
   } catch (error) {
-    console.error('Error fetching resources:', error);
+    console.error('Error in fetchAllResources:', error);
     return [];
   }
 }

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Resource, fallbackResources, categories, types } from './data';
 import Link from 'next/link';
 import { ExternalLink } from 'lucide-react';
+import { FiRefreshCw } from 'react-icons/fi';
 
 export default function ResourcesPage() {
   const [resources, setResources] = useState<Resource[]>(fallbackResources);
@@ -12,15 +13,28 @@ export default function ResourcesPage() {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadResources() {
+      setIsLoading(true);
+      setError(null);
+      
       try {
         const response = await fetch('/api/resources');
+        if (!response.ok) {
+          throw new Error('Failed to fetch resources');
+        }
+        
         const data = await response.json();
-        setResources(data.length > 0 ? data : fallbackResources);
+        if (Array.isArray(data)) {
+          setResources(data);
+        } else {
+          throw new Error('Invalid response format');
+        }
       } catch (error) {
-        console.error('Failed to fetch resources:', error);
+        console.error('Failed to load resources:', error);
         setResources(fallbackResources);
       } finally {
         setIsLoading(false);
@@ -28,6 +42,34 @@ export default function ResourcesPage() {
     }
     loadResources();
   }, []);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/resources', { 
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch resources');
+      }
+      
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        setResources(data);
+      }
+    } catch (error) {
+      console.error('Failed to refresh resources:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   // Filter resources based on search and filters
   const filteredResources = resources.filter((resource) => {
@@ -51,57 +93,59 @@ export default function ResourcesPage() {
     <div className="min-h-screen p-4">
       <div className="max-w-7xl mx-auto">
         <div className="container mx-auto px-4 py-8">
-          <h1 className="text-4xl font-bold mb-8">Open Source Resources</h1>
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-4xl font-bold">Open Source Resources</h1>
+            {/* Refresh button removed */}
+          </div>
         </div>
-        <p className="text-muted-foreground mb-8">
-          {filteredResources.length} resources available
-        </p>
-
-        {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <input
-            type="text"
-            placeholder="Search resources..."
-            className="px-4 py-2 border rounded-lg"
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setCurrentPage(1);
-            }}
-          />
-          <select
-            className="px-4 py-2 border rounded-lg"
-            value={selectedCategory}
-            onChange={(e) => {
-              setSelectedCategory(e.target.value);
-              setCurrentPage(1);
-            }}
-          >
-            <option value="">All Categories</option>
-            {categories.map(category => (
-              <option key={category} value={category}>{category}</option>
-            ))}
-          </select>
-          <select
-            className="px-4 py-2 border rounded-lg"
-            value={selectedType}
-            onChange={(e) => {
-              setSelectedType(e.target.value);
-              setCurrentPage(1);
-            }}
-          >
-            <option value="">All Types</option>
-            {types.map(type => (
-              <option key={type} value={type}>{type}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Loading state */}
         {isLoading ? (
           <div className="text-center py-8">Loading resources...</div>
         ) : (
           <>
+            <p className="text-muted-foreground mb-8">
+              {filteredResources.length} resources available
+            </p>
+
+            {/* Filters */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              <input
+                type="text"
+                placeholder="Search resources..."
+                className="px-4 py-2 border rounded-lg"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
+              />
+              <select
+                className="px-4 py-2 border rounded-lg"
+                value={selectedCategory}
+                onChange={(e) => {
+                  setSelectedCategory(e.target.value);
+                  setCurrentPage(1);
+                }}
+              >
+                <option value="">All Categories</option>
+                {categories.map(category => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+              <select
+                className="px-4 py-2 border rounded-lg"
+                value={selectedType}
+                onChange={(e) => {
+                  setSelectedType(e.target.value);
+                  setCurrentPage(1);
+                }}
+              >
+                <option value="">All Types</option>
+                {types.map(type => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+
             {/* Resources Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
               {paginatedResources.map((resource) => (
