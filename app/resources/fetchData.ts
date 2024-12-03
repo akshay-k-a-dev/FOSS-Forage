@@ -16,6 +16,9 @@ interface GitHubRepo {
   stargazers_count: number;
   topics: string[];
   language: string | null;
+  archived: boolean;
+  disabled: boolean;
+  fork: boolean;
 }
 
 interface GitHubResponse {
@@ -111,11 +114,11 @@ async function fetchGithubRepos(query: string, category: string, page: number = 
         stars: repo.stargazers_count,
         dateAdded: new Date().toISOString(),
         lastChecked: new Date().toISOString(),
-        tags: [...new Set([
+        tags: [
           ...(repo.topics || []),
-          repo.language?.toLowerCase(),
+          repo.language,
           category.toLowerCase()
-        ])].filter(Boolean)
+        ].filter((tag): tag is string => typeof tag === 'string')
       }));
   } catch (error) {
     if (axios.isAxiosError(error)) {
