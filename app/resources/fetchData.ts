@@ -1,6 +1,7 @@
 import axios from 'axios';
-import { Resource } from './data';
+import { Resource, fallbackResources } from './data';
 import { BrowserCache } from '../utils/cache';
+import { loadStoredResources, appendResources, getResourceCount } from '../utils/persistentStorage';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -8,6 +9,27 @@ const DESCRIPTION_MAX_LENGTH = 200;
 const RESOURCES_CACHE_KEY = 'resources_cache';
 const RESOURCES_CACHE_DURATION = 12 * 60 * 60 * 1000; // 12 hours
 const RESOURCE_CHECK_INTERVAL = 12 * 60 * 60 * 1000; // 12 hours
+const MAX_RETRIES = 5; // Maximum number of retry attempts
+const TARGET_RESOURCES = 600;
+const RESOURCES_PER_PAGE = 100;
+const FETCH_INTERVAL = 15 * 60 * 1000; // 15 minutes
+const RATE_LIMIT_CHECK_INTERVAL = 60 * 1000; // 1 minute
+
+// Custom repository to always include
+const CUSTOM_REPO = {
+  html_url: 'https://github.com/akshay-k-a-dev/coldfetch',
+  name: 'coldfetch',
+  description: 'A system information fetcher for Linux written in C',
+  stargazers_count: 0,
+  topics: ['linux', 'system-info', 'c'],
+  language: 'C',
+  archived: false,
+  disabled: false,
+  fork: false
+};
+
+let isInitialFetch = true;
+let existingResources: Set<string> = new Set();
 
 interface GitHubRepo {
   name: string;
@@ -33,92 +55,22 @@ function truncateDescription(description: string): string {
   return lastSpace > 0 ? description.slice(0, lastSpace) + '...' : description.slice(0, DESCRIPTION_MAX_LENGTH) + '...';
 }
 
-const MAX_RETRIES = 3;
-const TARGET_RESOURCES = 600;
-const RESOURCES_PER_PAGE = 100;
-const PAGES_NEEDED = 2;
-const RATE_LIMIT_WAIT = 60000;
-const MIN_ACCEPTABLE_RESOURCES = 100;
-
-const SEARCH_CATEGORIES = [
-  {
-    query: 'stars:>10000 language:javascript framework NOT deprecated NOT archived',
-    category: 'Frontend Development'
-  },
-  {
-    query: 'stars:>10000 language:typescript framework NOT deprecated NOT archived',
-    category: 'Frontend Development'
-  },
-  {
-    query: 'stars:>5000 language:python web framework NOT deprecated NOT archived',
-    category: 'Backend Development'
-  },
-  {
-    query: 'stars:>5000 language:java spring boot NOT deprecated NOT archived',
-    category: 'Backend Development'
-  },
-  {
-    query: 'stars:>5000 react-native OR flutter mobile NOT deprecated NOT archived',
-    category: 'Mobile Development'
-  },
-  {
-    query: 'stars:>5000 terraform OR ansible devops NOT deprecated NOT archived',
-    category: 'DevOps & CI/CD'
-  },
-  {
-    query: 'stars:>5000 kubernetes helm cloud NOT deprecated NOT archived',
-    category: 'Cloud Native'
-  },
-  {
-    query: 'stars:>3000 security penetration-testing NOT deprecated NOT archived',
-    category: 'Security & Compliance'
-  }
-];
-
-// Rate limit tracking
-let rateLimitResetTime: number | null = null;
-let retryCount = 0;
-
-function shouldRetry(error: any): boolean {
-  // Check if it's a rate limit error
-  return error.response && 
-         error.response.status === 403 && 
-         error.response.headers['x-ratelimit-remaining'] === '0';
-}
-
-function extractRateLimitResetTime(headers: any): number | null {
-  const resetTimestamp = headers['x-ratelimit-reset'];
-  return resetTimestamp ? parseInt(resetTimestamp, 10) * 1000 : null;
-}
-
-async function waitForRateLimitReset() {
-  if (!rateLimitResetTime) return;
-
-  const currentTime = Date.now();
-  const waitTime = rateLimitResetTime - currentTime;
-
-  if (waitTime > 0) {
-    console.log(`Rate limit hit. Waiting until ${new Date(rateLimitResetTime).toLocaleString()}`);
-    await new Promise(resolve => setTimeout(resolve, waitTime));
-  }
-}
-
-async function fetchGithubRepos(query: string, category: string, page: number = 1): Promise<Partial<Resource>[]> {
+async function fetchGithubRepos(category: string, page: number = 1, query?: string): Promise<Resource[]> {
   try {
     // Wait if we've hit a previous rate limit
     await waitForRateLimitReset();
 
-    const rateLimit = await checkRateLimit();
-    if (rateLimit < 2) {
-      throw new Error('RATE_LIMIT_REACHED');
-    }
-
-    const response = await axios.get<GitHubResponse>('https://api.github.com/search/repositories', {
+    // Construct search query based on category and optional query
+    const searchQuery = query 
+      ? `${query} ${category}`.split(' ').join('+')
+      : category.split(' ').join('+');
+      
+    const response = await axios.get<{ items: GitHubRepo[] }>('https://api.github.com/search/repositories', {
       params: {
-        q: query,
+        q: `${searchQuery} stars:>100 NOT archived`,
         sort: 'stars',
         order: 'desc',
-        per_page: RESOURCES_PER_PAGE,
+        per_page: 100,
         page: page
       },
       headers: {
@@ -130,7 +82,7 @@ async function fetchGithubRepos(query: string, category: string, page: number = 
     await delay(2000);
 
     // Reset retry count on successful fetch
-    retryCount = 0;
+    let retryCount = 0;
 
     if (!response.data?.items?.length) {
       return [];
@@ -143,23 +95,21 @@ async function fetchGithubRepos(query: string, category: string, page: number = 
         title: repo.name,
         description: truncateDescription(repo.description || `A ${category.toLowerCase()} resource`),
         link: repo.html_url,
+        url: repo.html_url,
         category,
         type: determineResourceType(repo),
         stars: repo.stargazers_count,
         dateAdded: new Date().toISOString(),
         lastChecked: new Date().toISOString(),
-        tags: [
-          ...(repo.topics || []),
-          repo.language,
-          category.toLowerCase()
-        ].filter((tag): tag is string => typeof tag === 'string')
+        tags: repo.topics || []
       }));
   } catch (error) {
     // Handle rate limit
     if (axios.isAxiosError(error) && shouldRetry(error)) {
       // Extract reset time from headers
-      rateLimitResetTime = extractRateLimitResetTime(error.response?.headers || {});
+      let rateLimitResetTime: number | null = extractRateLimitResetTime(error.response?.headers || {});
       
+      let retryCount = 0;  
       // Implement exponential backoff
       if (retryCount < MAX_RETRIES) {
         retryCount++;
@@ -168,7 +118,7 @@ async function fetchGithubRepos(query: string, category: string, page: number = 
         await new Promise(resolve => setTimeout(resolve, backoffTime));
         
         // Retry the fetch
-        return fetchGithubRepos(query, category, page);
+        return fetchGithubRepos(category, page, query);
       }
     }
 
@@ -187,42 +137,170 @@ async function fetchGithubRepos(query: string, category: string, page: number = 
 }
 
 async function fetchResourcesWithRetry(): Promise<Resource[]> {
-  let allResources: Partial<Resource>[] = [];
-  let categoryIndex = 0;
+  let allResources: Resource[] = [];
+  let retryCount = 0;
+  let hasRateLimitError = false;
 
-  while (categoryIndex < SEARCH_CATEGORIES.length && allResources.length < TARGET_RESOURCES) {
-    const { query, category } = SEARCH_CATEGORIES[categoryIndex];
-    let retryCount = 0;
+  // Add custom repository first
+  const customResource = {
+    id: CUSTOM_REPO.html_url,
+    title: CUSTOM_REPO.name,
+    description: truncateDescription(CUSTOM_REPO.description),
+    link: CUSTOM_REPO.html_url,
+    url: CUSTOM_REPO.html_url,
+    category: 'System Tools',
+    type: 'tool' as const,
+    stars: CUSTOM_REPO.stargazers_count,
+    dateAdded: new Date().toISOString(),
+    lastChecked: new Date().toISOString(),
+    tags: CUSTOM_REPO.topics
+  };
+  allResources.push(customResource);
+  existingResources.add(customResource.id);
 
-    while (retryCount < MAX_RETRIES) {
-      try {
-        for (let page = 1; page <= PAGES_NEEDED; page++) {
-          const results = await fetchGithubRepos(query, category, page);
-          allResources.push(...results);
+  while (retryCount < MAX_RETRIES && allResources.length < TARGET_RESOURCES) {
+    try {
+      for (const category of RESOURCE_CATEGORIES) {
+        let page = 1;
+        let hasMore = true;
+
+        while (hasMore && allResources.length < TARGET_RESOURCES) {
+          try {
+            const resources = await fetchGithubRepos(category, page);
+            
+            // Filter out duplicates and add new resources
+            const newResources = resources.filter(resource => !existingResources.has(resource.id));
+            newResources.forEach(resource => {
+              existingResources.add(resource.id);
+              allResources.push(resource);
+            });
+
+            hasMore = resources.length === RESOURCES_PER_PAGE;
+            page++;
+
+            // Add delay between requests to avoid rate limiting
+            await delay(2000);
+          } catch (error: any) {
+            if (error.response?.status === 403) {
+              hasRateLimitError = true;
+              console.log('Rate limit reached, waiting for reset...');
+              await waitForRateLimitReset();
+              continue;
+            }
+            throw error;
+          }
         }
-        break; // Break retry loop on success
-      } catch (error) {
-        console.error(`Retry ${retryCount + 1} failed for category ${category}`, error);
-        retryCount++;
-        if (retryCount >= MAX_RETRIES) {
-          console.warn(`Max retries reached for ${category}`);
-        }
-        await delay(5000);
       }
+      break;
+    } catch (error) {
+      retryCount++;
+      console.error(`Attempt ${retryCount} failed:`, error);
+      if (retryCount === MAX_RETRIES) {
+        console.log('Max retries reached, returning partial results');
+        return allResources;
+      }
+      await delay(5000 * retryCount); // Exponential backoff
     }
-    categoryIndex++;
   }
 
-  return allResources as Resource[];
+  return allResources;
 }
 
-async function checkRateLimit(): Promise<number> {
+export async function fetchAllResources(): Promise<Resource[]> {
+  // First, load stored resources
+  const storedResources = loadStoredResources();
+  
+  if (storedResources.length >= TARGET_RESOURCES) {
+    console.log(`Using ${storedResources.length} stored resources`);
+    return storedResources;
+  }
+
   try {
-    const response = await axios.get('https://api.github.com/rate_limit');
-    return response.data.rate.remaining;
+    // Start continuous fetching if not already started
+    if (typeof window !== 'undefined' && !window.__fetchingStarted) {
+      window.__fetchingStarted = true;
+      startContinuousFetching().catch(console.error);
+    }
+
+    // Get fresh resources
+    const freshResources = await fetchResourcesWithRetry();
+    
+    if (freshResources.length > 0) {
+      // Append new resources to storage
+      const combinedResources = appendResources(freshResources);
+      console.log(`Total resources: ${combinedResources.length}`);
+      return combinedResources;
+    }
+
+    // If we have stored resources, return those
+    if (storedResources.length > 0) {
+      return storedResources;
+    }
+
+    // Last resort: return fallback resources
+    return fallbackResources;
   } catch (error) {
-    console.error('Error checking rate limit:', error);
-    return 0;
+    console.error('Error in fetchAllResources:', error);
+    
+    // Return stored or fallback resources on error
+    if (storedResources.length > 0) {
+      return storedResources;
+    }
+    return fallbackResources;
+  }
+}
+
+async function startContinuousFetching() {
+  while (true) {
+    try {
+      if (getResourceCount() >= TARGET_RESOURCES) {
+        console.log('Target resource count reached');
+        break;
+      }
+
+      const freshResources = await fetchResourcesWithRetry();
+      if (freshResources.length > 0) {
+        appendResources(freshResources);
+      }
+
+      // Check rate limit status
+      const resetTime = await checkRateLimit();
+      if (resetTime > 0) {
+        console.log(`Rate limit will reset in ${Math.ceil(resetTime / 1000)} seconds`);
+        await delay(Math.min(resetTime, FETCH_INTERVAL));
+      } else {
+        await delay(FETCH_INTERVAL);
+      }
+    } catch (error) {
+      console.error('Error in continuous fetching:', error);
+      await delay(FETCH_INTERVAL);
+    }
+  }
+}
+
+function shouldRetry(error: any): boolean {
+  // Check if it's a rate limit error
+  return error.response && 
+         error.response.status === 403 && 
+         error.response.headers['x-ratelimit-remaining'] === '0';
+}
+
+function extractRateLimitResetTime(headers: any): number | null {
+  const resetTimestamp = headers['x-ratelimit-reset'];
+  return resetTimestamp ? parseInt(resetTimestamp, 10) * 1000 : null;
+}
+
+async function waitForRateLimitReset() {
+  let rateLimitResetTime: number | null = null;
+
+  if (!rateLimitResetTime) return;
+
+  const currentTime = Date.now();
+  const waitTime = rateLimitResetTime - currentTime;
+
+  if (waitTime > 0) {
+    console.log(`Rate limit hit. Waiting until ${new Date(rateLimitResetTime).toLocaleString()}`);
+    await new Promise(resolve => setTimeout(resolve, waitTime));
   }
 }
 
@@ -240,17 +318,28 @@ function determineResourceType(repo: GitHubRepo): Resource['type'] {
   return 'tool';
 }
 
-export async function fetchAllResources(): Promise<Resource[]> {
-  const cache = new BrowserCache();
-  try {
-    const cachedResources = await cache.get<Resource[]>(RESOURCES_CACHE_KEY);
-    if (cachedResources) return cachedResources;
+const RESOURCE_CATEGORIES = [
+  'Frontend Development',
+  'Backend Development', 
+  'Mobile Development', 
+  'DevOps & CI/CD', 
+  'Cloud Native', 
+  'Security & Compliance'
+];
 
-    const resources = await fetchResourcesWithRetry();
-    await cache.set(RESOURCES_CACHE_KEY, resources, RESOURCES_CACHE_DURATION);
-    return resources;
+// Add this type declaration for the window object
+declare global {
+  interface Window {
+    __fetchingStarted?: boolean;
+  }
+}
+
+async function checkRateLimit(): Promise<number> {
+  try {
+    const response = await axios.get('https://api.github.com/rate_limit');
+    return response.data.rate.remaining;
   } catch (error) {
-    console.error('Error in fetchAllResources:', error);
-    return [];
+    console.error('Error checking rate limit:', error);
+    return 0;
   }
 }

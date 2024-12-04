@@ -1,4 +1,5 @@
 export interface Resource {
+  url: string | undefined;
   id: string;
   title: string;
   description: string;
@@ -23,7 +24,8 @@ export const fallbackResources: Resource[] = [
     type: 'framework',
     dateAdded: '',
     lastChecked: '',
-    tags: ['javascript', 'ui', 'frontend', 'spa']
+    tags: ['javascript', 'ui', 'frontend', 'spa'],
+    url: undefined
   },
   {
     id: '2',
@@ -34,7 +36,8 @@ export const fallbackResources: Resource[] = [
     type: 'framework',
     dateAdded: '',
     lastChecked: '',
-    tags: ['react', 'framework', 'ssr', 'frontend']
+    tags: ['react', 'framework', 'ssr', 'frontend'],
+    url: undefined
   },
   {
     id: '3',
@@ -45,7 +48,8 @@ export const fallbackResources: Resource[] = [
     type: 'framework',
     dateAdded: '',
     lastChecked: '',
-    tags: ['javascript', 'frontend', 'spa']
+    tags: ['javascript', 'frontend', 'spa'],
+    url: undefined
   },
   {
     id: '4',
@@ -56,7 +60,8 @@ export const fallbackResources: Resource[] = [
     type: 'framework',
     dateAdded: '',
     lastChecked: '',
-    tags: ['typescript', 'frontend', 'google']
+    tags: ['typescript', 'frontend', 'google'],
+    url: undefined
   },
 
   // Backend Development
@@ -69,7 +74,8 @@ export const fallbackResources: Resource[] = [
     type: 'framework',
     dateAdded: '',
     lastChecked: '',
-    tags: ['java', 'spring', 'enterprise']
+    tags: ['java', 'spring', 'enterprise'],
+    url: undefined
   },
   {
     id: '6',
@@ -80,7 +86,8 @@ export const fallbackResources: Resource[] = [
     type: 'framework',
     dateAdded: '',
     lastChecked: '',
-    tags: ['python', 'web', 'orm']
+    tags: ['python', 'web', 'orm'],
+    url: undefined
   },
   {
     id: '7',
@@ -91,7 +98,8 @@ export const fallbackResources: Resource[] = [
     type: 'framework',
     dateAdded: '',
     lastChecked: '',
-    tags: ['nodejs', 'javascript', 'web']
+    tags: ['nodejs', 'javascript', 'web'],
+    url: undefined
   },
 
   // Mobile Development
@@ -104,7 +112,8 @@ export const fallbackResources: Resource[] = [
     type: 'framework',
     dateAdded: '',
     lastChecked: '',
-    tags: ['dart', 'mobile', 'cross-platform']
+    tags: ['dart', 'mobile', 'cross-platform'],
+    url: undefined
   },
   {
     id: '9',
@@ -115,7 +124,8 @@ export const fallbackResources: Resource[] = [
     type: 'framework',
     dateAdded: '',
     lastChecked: '',
-    tags: ['react', 'mobile', 'javascript']
+    tags: ['react', 'mobile', 'javascript'],
+    url: undefined
   },
   {
     id: '10',
@@ -126,7 +136,8 @@ export const fallbackResources: Resource[] = [
     type: 'library',
     dateAdded: '',
     lastChecked: '',
-    tags: ['android', 'jvm', 'mobile']
+    tags: ['android', 'jvm', 'mobile'],
+    url: undefined
   },
 
   // Cloud Native
@@ -139,7 +150,8 @@ export const fallbackResources: Resource[] = [
     type: 'tool',
     dateAdded: '',
     lastChecked: '',
-    tags: ['containers', 'orchestration', 'cloud']
+    tags: ['containers', 'orchestration', 'cloud'],
+    url: undefined
   },
   {
     id: '12',
@@ -150,7 +162,8 @@ export const fallbackResources: Resource[] = [
     type: 'tool',
     dateAdded: '',
     lastChecked: '',
-    tags: ['containers', 'virtualization']
+    tags: ['containers', 'virtualization'],
+    url: undefined
   },
 
   // DevOps & CI/CD
@@ -163,7 +176,8 @@ export const fallbackResources: Resource[] = [
     type: 'tool',
     dateAdded: '',
     lastChecked: '',
-    tags: ['automation', 'ci-cd', 'java']
+    tags: ['automation', 'ci-cd', 'java'],
+    url: undefined
   },
   {
     id: '14',
@@ -174,7 +188,8 @@ export const fallbackResources: Resource[] = [
     type: 'tool',
     dateAdded: '',
     lastChecked: '',
-    tags: ['automation', 'ci-cd', 'github']
+    tags: ['automation', 'ci-cd', 'github'],
+    url: undefined
   },
 
   // Security & Compliance
@@ -187,7 +202,8 @@ export const fallbackResources: Resource[] = [
     type: 'tool',
     dateAdded: '',
     lastChecked: '',
-    tags: ['security', 'testing', 'scanner']
+    tags: ['security', 'testing', 'scanner'],
+    url: undefined
   },
   {
     id: '16',
@@ -198,7 +214,8 @@ export const fallbackResources: Resource[] = [
     type: 'tool',
     dateAdded: '',
     lastChecked: '',
-    tags: ['security', 'secrets', 'encryption']
+    tags: ['security', 'secrets', 'encryption'],
+    url: undefined
   },
 
   // Data & AI
@@ -211,7 +228,8 @@ export const fallbackResources: Resource[] = [
     type: 'library',
     dateAdded: '',
     lastChecked: '',
-    tags: ['machine-learning', 'ai', 'python']
+    tags: ['machine-learning', 'ai', 'python'],
+    url: undefined
   },
   {
     id: '18',
@@ -222,7 +240,8 @@ export const fallbackResources: Resource[] = [
     type: 'library',
     dateAdded: '',
     lastChecked: '',
-    tags: ['machine-learning', 'ai', 'python']
+    tags: ['machine-learning', 'ai', 'python'],
+    url: undefined
   },
 
   // Development Tools
@@ -235,7 +254,8 @@ export const fallbackResources: Resource[] = [
     type: 'tool',
     dateAdded: '',
     lastChecked: '',
-    tags: ['editor', 'ide', 'microsoft']
+    tags: ['editor', 'ide', 'microsoft'],
+    url: undefined
   },
   {
     id: '20',
@@ -246,7 +266,8 @@ export const fallbackResources: Resource[] = [
     type: 'tool',
     dateAdded: '',
     lastChecked: '',
-    tags: ['version-control', 'cli']
+    tags: ['version-control', 'cli'],
+    url: undefined
   }
 ];
 

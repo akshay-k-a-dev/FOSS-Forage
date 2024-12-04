@@ -23,6 +23,37 @@ Imagine a place where:
 - Dark mode so dark, even Batman would be impressed
 - Mobile-friendly (because we know you're coding on your phone in bed)
 
+### 3. Events Page: Where the Magic Happens
+- Dynamic display of upcoming and past events
+- Interactive event cards with all the important details
+- Mobile-optimized grid layout
+- Easy registration for upcoming events
+- Photo galleries for past events
+
+### 4. Contribute Page: Join the Penguin Army
+- Multiple ways to contribute:
+  - Join the developer team
+  - Support via PayPal
+  - Become a blog writer
+  - Create tutorials/mentor others
+  - Manage our awesome community
+- User-friendly application forms
+- Mobile-responsive design
+- Secure form validation
+
+### 5. Resources & Learning
+- Curated learning resources
+- Interactive tutorials
+- Community-driven content
+- Mobile-friendly resource browser
+
+### 6. Community Features
+- Discussion forums
+- Blog posts
+- News updates
+- User profiles
+- Community guidelines
+
 ## 🛠 Tech Stack (aka Our Coding Avengers)
 
 - **Next.js 14**: The superhero of React frameworks
