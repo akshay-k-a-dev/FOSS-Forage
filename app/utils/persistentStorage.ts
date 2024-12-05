@@ -56,3 +56,7 @@ export function getResourceCount(): number {
     const resources = loadStoredResources();
     return resources.length;
 }
+
+export function delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}

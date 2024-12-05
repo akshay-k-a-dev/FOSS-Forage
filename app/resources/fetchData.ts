@@ -1,9 +1,7 @@
 import axios from 'axios';
 import { Resource, fallbackResources } from './data';
 import { BrowserCache } from '../utils/cache';
-import { loadStoredResources, appendResources, getResourceCount } from '../utils/persistentStorage';
-
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+import { loadStoredResources, appendResources, getResourceCount, delay } from '../utils/persistentStorage';
 
 const DESCRIPTION_MAX_LENGTH = 200;
 const RESOURCES_CACHE_KEY = 'resources_cache';
@@ -45,6 +43,77 @@ interface GitHubRepo {
 
 interface GitHubResponse {
   items: GitHubRepo[];
+}
+
+interface SourceConfig {
+  name: string;
+  url: string;
+  transform: (data: any) => Resource[];
+}
+
+const SOURCES: SourceConfig[] = [
+  {
+    name: 'GitLab',
+    url: 'https://gitlab.com/api/v4/projects?visibility=public&order_by=stars&sort=desc&per_page=100',
+    transform: (data: any[]): Resource[] => data.map(project => ({
+      id: project.web_url,
+      title: project.name,
+      description: truncateDescription(project.description || 'A GitLab project'),
+      link: project.web_url,
+      url: project.web_url,
+      category: determineCategory(project),
+      type: determineResourceType({ name: project.name, topics: project.topics || [] } as GitHubRepo),
+      stars: project.star_count,
+      dateAdded: new Date().toISOString(),
+      lastChecked: new Date().toISOString(),
+      tags: project.topics || []
+    }))
+  },
+  {
+    name: 'F-Droid',
+    url: 'https://f-droid.org/api/v1/packages',
+    transform: (data: any): Resource[] => data.packages.map((app: any) => ({
+      id: `fdroid-${app.packageName}`,
+      title: app.name,
+      description: truncateDescription(app.summary || 'An F-Droid application'),
+      link: `https://f-droid.org/packages/${app.packageName}/`,
+      url: `https://f-droid.org/packages/${app.packageName}/`,
+      category: 'Mobile Development',
+      type: 'app',
+      stars: 0,
+      dateAdded: new Date().toISOString(),
+      lastChecked: new Date().toISOString(),
+      tags: app.categories || []
+    }))
+  },
+  {
+    name: 'OpenLibrary',
+    url: 'https://openlibrary.org/search.json?q=open+source&limit=100',
+    transform: (data: any): Resource[] => data.docs.map((book: any) => ({
+      id: `openlibrary-${book.key}`,
+      title: book.title,
+      description: truncateDescription(book.description || 'An open source book'),
+      link: `https://openlibrary.org${book.key}`,
+      url: `https://openlibrary.org${book.key}`,
+      category: 'Documentation',
+      type: 'book',
+      stars: 0,
+      dateAdded: new Date().toISOString(),
+      lastChecked: new Date().toISOString(),
+      tags: book.subject || []
+    }))
+  }
+];
+
+function determineCategory(project: any): string {
+  const name = project.name.toLowerCase();
+  const description = (project.description || '').toLowerCase();
+  
+  if (name.includes('frontend') || description.includes('frontend')) return 'Frontend Development';
+  if (name.includes('backend') || description.includes('backend')) return 'Backend Development';
+  if (name.includes('mobile') || description.includes('mobile')) return 'Mobile Development';
+  if (name.includes('ai') || description.includes('machine learning')) return 'AI & Machine Learning';
+  return 'Development Tools';
 }
 
 function truncateDescription(description: string): string {
@@ -136,6 +205,37 @@ async function fetchGithubRepos(category: string, page: number = 1, query?: stri
   }
 }
 
+async function fetchFromSource(source: SourceConfig): Promise<Resource[]> {
+  try {
+    const response = await axios.get(source.url, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Resource-Fetcher'
+      },
+      timeout: 10000
+    });
+    
+    return source.transform(response.data);
+  } catch (error) {
+    console.error(`Error fetching from ${source.name}:`, error);
+    return [];
+  }
+}
+
+async function fetchFromMultipleSources(): Promise<Resource[]> {
+  try {
+    const results = await Promise.all([
+      ...SOURCES.map(source => fetchFromSource(source)),
+      fetchGithubRepos('Development Tools') // Keep existing GitHub fetching
+    ]);
+    
+    return results.flat().filter(resource => !existingResources.has(resource.id));
+  } catch (error) {
+    console.error('Error fetching from multiple sources:', error);
+    return [];
+  }
+}
+
 async function fetchResourcesWithRetry(): Promise<Resource[]> {
   let allResources: Resource[] = [];
   let retryCount = 0;
@@ -160,34 +260,41 @@ async function fetchResourcesWithRetry(): Promise<Resource[]> {
 
   while (retryCount < MAX_RETRIES && allResources.length < TARGET_RESOURCES) {
     try {
-      for (const category of RESOURCE_CATEGORIES) {
-        let page = 1;
-        let hasMore = true;
+      // Fetch from multiple sources first
+      const multiSourceResources = await fetchFromMultipleSources();
+      allResources.push(...multiSourceResources);
+      
+      // Then continue with category-based GitHub fetching if needed
+      if (allResources.length < TARGET_RESOURCES) {
+        for (const category of RESOURCE_CATEGORIES) {
+          let page = 1;
+          let hasMore = true;
 
-        while (hasMore && allResources.length < TARGET_RESOURCES) {
-          try {
-            const resources = await fetchGithubRepos(category, page);
-            
-            // Filter out duplicates and add new resources
-            const newResources = resources.filter(resource => !existingResources.has(resource.id));
-            newResources.forEach(resource => {
-              existingResources.add(resource.id);
-              allResources.push(resource);
-            });
+          while (hasMore && allResources.length < TARGET_RESOURCES) {
+            try {
+              const resources = await fetchGithubRepos(category, page);
+              
+              // Filter out duplicates and add new resources
+              const newResources = resources.filter(resource => !existingResources.has(resource.id));
+              newResources.forEach(resource => {
+                existingResources.add(resource.id);
+                allResources.push(resource);
+              });
 
-            hasMore = resources.length === RESOURCES_PER_PAGE;
-            page++;
+              hasMore = resources.length === RESOURCES_PER_PAGE;
+              page++;
 
-            // Add delay between requests to avoid rate limiting
-            await delay(2000);
-          } catch (error: any) {
-            if (error.response?.status === 403) {
-              hasRateLimitError = true;
-              console.log('Rate limit reached, waiting for reset...');
-              await waitForRateLimitReset();
-              continue;
+              // Add delay between requests to avoid rate limiting
+              await delay(2000);
+            } catch (error: any) {
+              if (error.response?.status === 403) {
+                hasRateLimitError = true;
+                console.log('Rate limit reached, waiting for reset...');
+                await waitForRateLimitReset();
+                continue;
+              }
+              throw error;
             }
-            throw error;
           }
         }
       }
@@ -199,7 +306,6 @@ async function fetchResourcesWithRetry(): Promise<Resource[]> {
         console.log('Max retries reached, returning partial results');
         return allResources;
       }
-      await delay(5000 * retryCount); // Exponential backoff
     }
   }
 
@@ -277,6 +383,8 @@ async function startContinuousFetching() {
     }
   }
 }
+
+startContinuousFetching();
 
 function shouldRetry(error: any): boolean {
   // Check if it's a rate limit error

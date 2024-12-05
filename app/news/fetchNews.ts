@@ -138,6 +138,8 @@ async function fetchFeed(source: typeof NEWS_SOURCES.LINUX_FOSS[0]): Promise<New
       maxRedirects: 5
     });
 
+    console.log(`Fetched from ${source.name}: Status ${response.status}`);
+
     const result: any = await parseXML(response.data);
     let items: any[] = [];
 
@@ -182,16 +184,21 @@ async function fetchAllArticles(): Promise<NewsArticle[]> {
   const allSources = [...NEWS_SOURCES.LINUX_FOSS, ...NEWS_SOURCES.TECH_NEWS];
   const results = await Promise.allSettled(
     allSources.map(async source => {
-      try {
-        const articles = await fetchFeed(source);
-        if (articles.length === 0) {
-          console.warn(`No articles fetched from ${source.name}`);
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const articles = await fetchFeed(source);
+          if (articles.length === 0) {
+            console.warn(`No articles fetched from ${source.name}`);
+          }
+          return articles;
+        } catch (error) {
+          console.error(`Attempt ${attempt + 1} failed for ${source.name}:`, error);
+          if (attempt < 2) {
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retrying
+          }
         }
-        return articles;
-      } catch (error) {
-        console.error(`Failed to fetch from ${source.name}:`, error);
-        return [];
       }
+      return [];
     })
   );
 
