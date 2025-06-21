@@ -1,20 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Resource, fallbackResources, categories, types } from './data';
+import { Resource, categories, types } from './data';
 import Link from 'next/link';
-import { ExternalLink } from 'lucide-react';
-import { FiRefreshCw } from 'react-icons/fi';
+import { ExternalLink, RefreshCw } from 'lucide-react';
 
 export default function ResourcesPage() {
-  const [resources, setResources] = useState<Resource[]>(() => {
-    // Try to get cached resources on initial load
-    if (typeof window !== 'undefined') {
-      const cachedResources = localStorage.getItem('github_resources_cache');
-      return cachedResources ? JSON.parse(cachedResources) : fallbackResources;
-    }
-    return fallbackResources;
-  });
+  const [resources, setResources] = useState<Resource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -22,56 +14,15 @@ export default function ResourcesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [retryIn, setRetryIn] = useState<number | null>(null);
 
   useEffect(() => {
-    async function loadResources() {
-      setIsLoading(true);
-      setError(null);
-      
-      try {
-        const response = await fetch('/api/resources');
-        if (!response.ok) {
-          throw new Error('Failed to fetch resources');
-        }
-        
-        const data = await response.json();
-        if (Array.isArray(data)) {
-          setResources(data);
-          // Cache resources in localStorage
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('github_resources_cache', JSON.stringify(data));
-          }
-        } else {
-          throw new Error('Invalid response format');
-        }
-      } catch (error) {
-        console.error('Failed to load resources:', error);
-        // We'll already have fallback or cached resources from initial state
-        setError('Failed to load fresh resources. Showing cached or fallback data.');
-      } finally {
-        // Add a minimum loading time
-        setTimeout(() => {
-          setIsLoading(false);
-        }, 1000);
-      }
-    }
-
     loadResources();
   }, []);
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    setError(null);
-
+  const loadResources = async () => {
     try {
-      const response = await fetch('/api/resources', { 
-        method: 'GET',
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      });
+      setError(null);
+      const response = await fetch('/api/resources');
       
       if (!response.ok) {
         throw new Error('Failed to fetch resources');
@@ -84,43 +35,33 @@ export default function ResourcesPage() {
         if (typeof window !== 'undefined') {
           localStorage.setItem('github_resources_cache', JSON.stringify(data));
         }
+      } else {
+        throw new Error('Invalid response format');
       }
     } catch (error) {
-      console.error('Failed to refresh resources:', error);
-      setError('Failed to refresh resources. Showing cached or fallback data.');
+      console.error('Failed to load resources:', error);
+      setError('Using cached resources. All external API calls have been disabled to prevent errors.');
       
-      // Check if it's a rate limit error and set retry timer
-      if (error instanceof Error && error.message.includes('rate limit')) {
-        const resetTime = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
-        startCountdown(resetTime);
+      // Try to load from cache
+      if (typeof window !== 'undefined') {
+        const cached = localStorage.getItem('github_resources_cache');
+        if (cached) {
+          try {
+            setResources(JSON.parse(cached));
+          } catch (e) {
+            console.error('Failed to parse cached resources:', e);
+          }
+        }
       }
     } finally {
-      setRefreshing(false);
+      setIsLoading(false);
     }
   };
 
-  const startCountdown = (resetTime: Date) => {
-    const updateCountdown = () => {
-      const now = new Date();
-      const timeLeft = resetTime.getTime() - now.getTime();
-      
-      if (timeLeft > 0) {
-        const hours = Math.floor(timeLeft / (1000 * 60 * 60));
-        const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
-        
-        setRetryIn(timeLeft);
-        setError(`Rate limit exceeded. Retry in ${hours}h ${minutes}m ${seconds}s`);
-        
-        const timer = setTimeout(updateCountdown, 1000);
-        return () => clearTimeout(timer);
-      } else {
-        setRetryIn(null);
-        setError(null);
-      }
-    };
-
-    updateCountdown();
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadResources();
+    setRefreshing(false);
   };
 
   // Filter resources based on search and filters
@@ -149,7 +90,7 @@ export default function ResourcesPage() {
             <div className="flex justify-between items-center mb-8">
               <h1 className="text-4xl font-bold">Loading Resources...</h1>
               <div className="animate-spin">
-                <FiRefreshCw className="w-6 h-6" />
+                <RefreshCw className="w-6 h-6" />
               </div>
             </div>
           </div>
@@ -166,20 +107,24 @@ export default function ResourcesPage() {
             <h1 className="text-4xl font-bold">Open Source Resources</h1>
             <button
               onClick={handleRefresh}
-              disabled={refreshing || !!retryIn}
-              className="px-4 py-2 border rounded-lg disabled:opacity-50"
+              disabled={refreshing}
+              className="px-4 py-2 border rounded-lg disabled:opacity-50 flex items-center gap-2"
             >
-              <FiRefreshCw className="h-4 w-4" />
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              Refresh
             </button>
           </div>
         </div>
+        
         {error && (
-          <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4" role="alert">
+          <div className="bg-blue-50 border-l-4 border-blue-500 text-blue-700 p-4 mb-4" role="alert">
+            <p className="font-medium">Information</p>
             <p>{error}</p>
           </div>
         )}
+        
         <p className="text-muted-foreground mb-8">
-          {filteredResources.length} resources available
+          {filteredResources.length} curated resources available
         </p>
 
         {/* Filters */}
@@ -251,6 +196,12 @@ export default function ResourcesPage() {
                   </span>
                 ))}
               </div>
+
+              {resource.stars && (
+                <div className="text-sm text-muted-foreground mb-4">
+                  ⭐ {resource.stars} stars
+                </div>
+              )}
 
               <Link
                 href={resource.link}

@@ -4,8 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import { NewsArticle, fetchNews } from './fetchNews';
 
-const POLLING_INTERVAL = 5 * 60 * 1000; // Poll every 5 minutes
-
 export default function NewsPage() {
   const [news, setNews] = useState<NewsArticle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -27,7 +25,6 @@ export default function NewsPage() {
       }
     } catch (error) {
       console.error('Failed to load news:', error);
-      // Only show error if we have no news
       if (news.length === 0) {
         setError('Loading news...');
       }
@@ -36,40 +33,10 @@ export default function NewsPage() {
     }
   }, [news.length]);
 
-  // Initial load with retries
+  // Initial load
   useEffect(() => {
-    let retryCount = 0;
-    const maxRetries = 3;
-    let retryTimeout: NodeJS.Timeout;
-
-    async function loadWithRetry() {
-      try {
-        await loadNews(true);
-      } catch (error) {
-        if (retryCount < maxRetries) {
-          retryCount++;
-          retryTimeout = setTimeout(loadWithRetry, 2000);
-        }
-      }
-    }
-
-    loadWithRetry();
-
-    return () => {
-      if (retryTimeout) {
-        clearTimeout(retryTimeout);
-      }
-    };
-  }, [loadNews]);
-
-  // Set up polling for new articles
-  useEffect(() => {
-    const pollInterval = setInterval(() => {
-      loadNews(false);
-    }, POLLING_INTERVAL);
-
-    return () => clearInterval(pollInterval);
-  }, [loadNews]);
+    loadNews(true);
+  }, []);
 
   if (isLoading) {
     return (
@@ -150,6 +117,13 @@ export default function NewsPage() {
             </div>
           ))}
         </div>
+
+        {news.length === 0 && !isLoading && (
+          <div className="text-center py-12">
+            <h2 className="text-xl font-semibold mb-2">No news available</h2>
+            <p className="text-muted-foreground">Check back later for the latest updates.</p>
+          </div>
+        )}
       </div>
     </div>
   );
