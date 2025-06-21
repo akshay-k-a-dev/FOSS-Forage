@@ -51,7 +51,7 @@ model Discussion {
   content     String
   slug        String   @unique
   category    String
-  tags        String   @db.Text // JSON string
+  tags        String   // JSON string
   views       Int      @default(0)
   isPinned    Boolean  @default(false)
   isLocked    Boolean  @default(false)
@@ -95,7 +95,7 @@ model BlogPost {
   excerpt     String?
   slug        String   @unique
   category    String
-  tags        String   @db.Text // JSON string
+  tags        String   // JSON string
   featuredImage String?
   status      String   @default("DRAFT")
   views       Int      @default(0)
@@ -156,7 +156,7 @@ model Achievement {
   icon        String
   points      Int
   category    String
-  condition   String   @db.Text // JSON condition
+  condition   String   // JSON string
   createdAt   DateTime @default(now())
 
   // Relations
@@ -185,7 +185,7 @@ model Activity {
   type        String
   description String
   points      Int          @default(0)
-  metadata    String?      @db.Text // JSON metadata
+  metadata    String?      // JSON string
   createdAt   DateTime     @default(now())
 
   // Relations
@@ -202,7 +202,7 @@ model Tutorial {
   category    String
   difficulty  String
   duration    String
-  tags        String   @db.Text // JSON string
+  tags        String   // JSON string
   views       Int      @default(0)
   isPublished Boolean  @default(false)
   createdAt   DateTime @default(now())
@@ -222,7 +222,7 @@ model Event {
   meetingLink String?
   image       String?
   maxAttendees Int?
-  registrations String @db.Text // JSON string
+  registrations String // JSON string
   status      String  @default("UPCOMING")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -237,7 +237,7 @@ model News {
   excerpt     String?
   image       String?
   category    String
-  tags        String   @db.Text // JSON string
+  tags        String   // JSON string
   isPublished Boolean  @default(false)
   authorId    String?
   publishedAt DateTime?
