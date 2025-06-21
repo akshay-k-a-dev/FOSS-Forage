@@ -144,7 +144,7 @@ async function fetchGithubRepos(category: string, page: number = 1, query?: stri
       },
       headers: {
         'Accept': 'application/vnd.github.v3+json',
-        'User-Agent': 'Resource-Fetcher'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
       }
     });
 
@@ -210,7 +210,7 @@ async function fetchFromSource(source: SourceConfig): Promise<Resource[]> {
     const response = await axios.get(source.url, {
       headers: {
         'Accept': 'application/json',
-        'User-Agent': 'Resource-Fetcher'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
       },
       timeout: 10000
     });
