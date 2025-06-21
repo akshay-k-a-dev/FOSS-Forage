@@ -28,20 +28,9 @@ export async function GET(
                 avatar: true,
                 level: true
               }
-            },
-            _count: {
-              select: {
-                likes: true
-              }
             }
           },
           orderBy: { createdAt: 'asc' }
-        },
-        _count: {
-          select: {
-            replies: true,
-            likes: true
-          }
         }
       }
     })
@@ -59,9 +48,30 @@ export async function GET(
       data: { views: { increment: 1 } }
     })
 
+    // Parse tags from JSON string
+    const discussionWithParsedTags = {
+      ...discussion,
+      tags: discussion.tags ? JSON.parse(discussion.tags) : [],
+      _count: {
+        replies: discussion.replies.length,
+        likes: 0 // Will be implemented when likes are added
+      }
+    }
+
+    // Parse reply counts
+    const repliesWithCounts = discussion.replies.map(reply => ({
+      ...reply,
+      _count: {
+        likes: 0 // Will be implemented when likes are added
+      }
+    }))
+
     return NextResponse.json({
       success: true,
-      data: discussion
+      data: {
+        ...discussionWithParsedTags,
+        replies: repliesWithCounts
+      }
     })
 
   } catch (error) {

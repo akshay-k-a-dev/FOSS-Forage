@@ -19,7 +19,7 @@ model User {
   lastName          String?
   avatar            String?
   bio               String?
-  role              Role     @default(USER)
+  role              String   @default("USER")
   isActive          Boolean  @default(true)
   isEmailVerified   Boolean  @default(false)
   emailVerificationToken String?
@@ -51,11 +51,11 @@ model Discussion {
   content     String
   slug        String   @unique
   category    String
-  tags        String[] // JSON array
+  tags        String   // JSON string
   views       Int      @default(0)
   isPinned    Boolean  @default(false)
   isLocked    Boolean  @default(false)
-  status      DiscussionStatus @default(ACTIVE)
+  status      String   @default("ACTIVE")
   authorId    String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -95,9 +95,9 @@ model BlogPost {
   excerpt     String?
   slug        String   @unique
   category    String
-  tags        String[] // JSON array
+  tags        String   // JSON string
   featuredImage String?
-  status      PostStatus @default(DRAFT)
+  status      String   @default("DRAFT")
   views       Int      @default(0)
   authorId    String
   publishedAt DateTime?
@@ -135,7 +135,7 @@ model Like {
   id           String   @id @default(cuid())
   userId       String
   targetId     String
-  targetType   LikeType
+  targetType   String
   createdAt    DateTime @default(now())
 
   // Relations
@@ -156,7 +156,7 @@ model Achievement {
   icon        String
   points      Int
   category    String
-  condition   String   // JSON condition
+  condition   String   // JSON string
   createdAt   DateTime @default(now())
 
   // Relations
@@ -182,10 +182,10 @@ model UserAchievement {
 model Activity {
   id          String       @id @default(cuid())
   userId      String
-  type        ActivityType
+  type        String
   description String
   points      Int          @default(0)
-  metadata    String?      // JSON metadata
+  metadata    String?      // JSON string
   createdAt   DateTime     @default(now())
 
   // Relations
@@ -200,9 +200,9 @@ model Tutorial {
   description String
   videoUrl    String
   category    String
-  difficulty  Difficulty
+  difficulty  String
   duration    String
-  tags        String[] // JSON array
+  tags        String   // JSON string
   views       Int      @default(0)
   isPublished Boolean  @default(false)
   createdAt   DateTime @default(now())
@@ -222,8 +222,8 @@ model Event {
   meetingLink String?
   image       String?
   maxAttendees Int?
-  registrations String[] // JSON array of user IDs
-  status      EventStatus @default(UPCOMING)
+  registrations String // JSON string
+  status      String  @default("UPCOMING")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -237,7 +237,7 @@ model News {
   excerpt     String?
   image       String?
   category    String
-  tags        String[] // JSON array
+  tags        String   // JSON string
   isPublished Boolean  @default(false)
   authorId    String?
   publishedAt DateTime?
@@ -260,55 +260,4 @@ model ModerationLog {
   moderator   User     @relation(fields: [moderatorId], references: [id])
 
   @@map("moderation_logs")
-}
-
-enum Role {
-  USER
-  ADMIN
-  SUPER_ADMIN
-}
-
-enum DiscussionStatus {
-  ACTIVE
-  CLOSED
-  ARCHIVED
-  DELETED
-}
-
-enum PostStatus {
-  DRAFT
-  PUBLISHED
-  ARCHIVED
-  DELETED
-}
-
-enum LikeType {
-  DISCUSSION
-  REPLY
-  BLOG_POST
-  COMMENT
-}
-
-enum ActivityType {
-  DISCUSSION_CREATED
-  REPLY_POSTED
-  BLOG_POST_CREATED
-  COMMENT_POSTED
-  LIKE_GIVEN
-  ACHIEVEMENT_EARNED
-  LOGIN
-  PROFILE_UPDATED
-}
-
-enum Difficulty {
-  BEGINNER
-  INTERMEDIATE
-  ADVANCED
-}
-
-enum EventStatus {
-  UPCOMING
-  ONGOING
-  COMPLETED
-  CANCELLED
 }

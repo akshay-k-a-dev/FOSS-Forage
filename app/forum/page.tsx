@@ -85,7 +85,7 @@ export default function ForumPage() {
   const [discussions, setDiscussions] = useState<Discussion[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('all')
   const [sortBy, setSortBy] = useState('latest')
 
   useEffect(() => {
@@ -95,7 +95,7 @@ export default function ForumPage() {
   const fetchDiscussions = async () => {
     try {
       const params = new URLSearchParams()
-      if (selectedCategory) params.append('category', selectedCategory)
+      if (selectedCategory && selectedCategory !== 'all') params.append('category', selectedCategory)
       if (searchQuery) params.append('search', searchQuery)
       params.append('sort', sortBy)
 
@@ -172,7 +172,7 @@ export default function ForumPage() {
               <SelectValue placeholder="All Categories" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Categories</SelectItem>
+              <SelectItem value="all">All Categories</SelectItem>
               {categories.map((category) => (
                 <SelectItem key={category.name} value={category.name}>
                   {category.name}

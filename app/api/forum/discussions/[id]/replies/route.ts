@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserFromToken } from '@/lib/auth'
-import { awardPoints } from '@/lib/points'
 
 export async function POST(
   request: NextRequest,
@@ -69,11 +68,6 @@ export async function POST(
             avatar: true,
             level: true
           }
-        },
-        _count: {
-          select: {
-            likes: true
-          }
         }
       }
     })
@@ -84,13 +78,15 @@ export async function POST(
       data: { updatedAt: new Date() }
     })
 
-    // Award points for posting reply
-    await awardPoints(user.id, 'REPLY_POSTED', `Replied to discussion: ${discussion.title}`)
-
     return NextResponse.json({
       success: true,
       message: 'Reply posted successfully',
-      data: reply
+      data: {
+        ...reply,
+        _count: {
+          likes: 0
+        }
+      }
     }, { status: 201 })
 
   } catch (error) {

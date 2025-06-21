@@ -60,18 +60,30 @@ export default function DiscussionPage() {
   const [replyLoading, setReplyLoading] = useState(false)
 
   useEffect(() => {
-    if (params.id) {
+    if (params && params.id) {
       fetchDiscussion()
     }
-  }, [params.id])
+  }, [params?.id])
 
   const fetchDiscussion = async () => {
+    if (!params?.id) return
+    
     try {
       const response = await fetch(`/api/forum/discussions/${params.id}`)
+      
+      if (!response.ok) {
+        throw new Error('Discussion not found')
+      }
+
       const data = await response.json()
 
       if (data.success) {
-        setDiscussion(data.data)
+        // Parse tags if they're stored as JSON string
+        const discussionData = {
+          ...data.data,
+          tags: typeof data.data.tags === 'string' ? JSON.parse(data.data.tags || '[]') : data.data.tags || []
+        }
+        setDiscussion(discussionData)
       } else {
         toast.error('Discussion not found')
         router.push('/forum')
@@ -79,6 +91,7 @@ export default function DiscussionPage() {
     } catch (error) {
       console.error('Error fetching discussion:', error)
       toast.error('Failed to load discussion')
+      router.push('/forum')
     } finally {
       setLoading(false)
     }
@@ -95,6 +108,11 @@ export default function DiscussionPage() {
 
     if (!replyContent.trim()) {
       toast.error('Please enter a reply')
+      return
+    }
+
+    if (!params?.id) {
+      toast.error('Invalid discussion')
       return
     }
 
