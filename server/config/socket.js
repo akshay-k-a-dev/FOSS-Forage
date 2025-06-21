@@ -1,57 +1,43 @@
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-
 const setupSocketIO = (io) => {
-  // Authentication middleware for socket connections
-  io.use(async (socket, next) => {
-    try {
-      const token = socket.handshake.auth.token;
-      if (token) {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await User.findById(decoded.id).select('-password');
-        socket.user = user;
-      }
-      next();
-    } catch (error) {
-      next(new Error('Authentication error'));
-    }
-  });
-
   io.on('connection', (socket) => {
-    console.log(`User connected: ${socket.user ? socket.user.username : 'Anonymous'}`);
+    console.log('User connected:', socket.id);
 
-    // Join user to their personal room
-    if (socket.user) {
-      socket.join(`user_${socket.user._id}`);
-    }
-
-    // Forum events
-    socket.on('join_discussion', (discussionId) => {
-      socket.join(`discussion_${discussionId}`);
+    // Join discussion room
+    socket.on('join-discussion', (discussionId) => {
+      socket.join(`discussion-${discussionId}`);
+      console.log(`User ${socket.id} joined discussion ${discussionId}`);
     });
 
-    socket.on('leave_discussion', (discussionId) => {
-      socket.leave(`discussion_${discussionId}`);
+    // Leave discussion room
+    socket.on('leave-discussion', (discussionId) => {
+      socket.leave(`discussion-${discussionId}`);
+      console.log(`User ${socket.id} left discussion ${discussionId}`);
     });
 
-    // Real-time notifications
-    socket.on('mark_notification_read', async (notificationId) => {
-      if (socket.user) {
-        // Update notification status in database
-        // Emit to user's room
-        socket.to(`user_${socket.user._id}`).emit('notification_updated', {
-          id: notificationId,
-          read: true
-        });
-      }
+    // Handle new reply
+    socket.on('new-reply', (data) => {
+      socket.to(`discussion-${data.discussionId}`).emit('reply-added', data);
     });
 
+    // Handle typing indicator
+    socket.on('typing', (data) => {
+      socket.to(`discussion-${data.discussionId}`).emit('user-typing', {
+        userId: data.userId,
+        username: data.username
+      });
+    });
+
+    socket.on('stop-typing', (data) => {
+      socket.to(`discussion-${data.discussionId}`).emit('user-stop-typing', {
+        userId: data.userId
+      });
+    });
+
+    // Handle disconnect
     socket.on('disconnect', () => {
-      console.log(`User disconnected: ${socket.user ? socket.user.username : 'Anonymous'}`);
+      console.log('User disconnected:', socket.id);
     });
   });
-
-  return io;
 };
 
 module.exports = { setupSocketIO };

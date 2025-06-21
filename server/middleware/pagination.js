@@ -1,21 +1,25 @@
-const paginate = (model) => {
-  return (req, res, next) => {
-    const page = parseInt(req.query.page, 10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 20;
+const pagination = (model) => {
+  return async (req, res, next) => {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    // Ensure reasonable limits
-    const maxLimit = 100;
-    const finalLimit = limit > maxLimit ? maxLimit : limit;
+    try {
+      const total = await model.countDocuments(req.query.filter || {});
+      
+      req.pagination = {
+        page,
+        limit,
+        skip,
+        total,
+        pages: Math.ceil(total / limit)
+      };
 
-    req.pagination = {
-      page,
-      limit: finalLimit,
-      skip
-    };
-
-    next();
+      next();
+    } catch (error) {
+      res.status(500).json({ message: error.message });
+    }
   };
 };
 
-module.exports = { paginate };
+module.exports = pagination;
