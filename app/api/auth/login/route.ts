@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { comparePassword, generateToken } from '@/lib/auth'
-import { awardPoints } from '@/lib/points'
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,8 +45,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Award login points
-    await awardPoints(user.id, 'LOGIN', 'Daily login')
+    // Update last activity
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastActivity: new Date() }
+    })
 
     // Generate JWT token
     const token = generateToken({

@@ -39,9 +39,9 @@ export function Navigation() {
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
-      case 'super_admin':
+      case 'SUPER_ADMIN':
         return 'bg-red-500 text-white'
-      case 'admin':
+      case 'ADMIN':
         return 'bg-blue-500 text-white'
       default:
         return 'bg-gray-500 text-white'
@@ -50,9 +50,9 @@ export function Navigation() {
 
   const getRoleDisplayName = (role: string) => {
     switch (role) {
-      case 'super_admin':
+      case 'SUPER_ADMIN':
         return 'Super Admin'
-      case 'admin':
+      case 'ADMIN':
         return 'Admin'
       default:
         return 'User'
@@ -110,7 +110,7 @@ export function Navigation() {
                 <DropdownMenuItem asChild>
                   <Link href="/profile">Profile</Link>
                 </DropdownMenuItem>
-                {['admin', 'super_admin'].includes(user.role) && (
+                {['ADMIN', 'SUPER_ADMIN'].includes(user.role) && (
                   <DropdownMenuItem asChild>
                     <Link href="/admin">Admin Panel</Link>
                   </DropdownMenuItem>

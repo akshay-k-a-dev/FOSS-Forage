@@ -1,20 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
-
-// Mock user database
-const users = [
-  {
-    id: '1',
-    email: 'akshayka@mamocollege.org',
-    username: 'akshayka',
-    password: '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj/VcSAg/9qK',
-    role: 'super_admin',
-    firstName: 'Akshay',
-    lastName: 'K A',
-    isActive: true,
-    createdAt: new Date().toISOString()
-  }
-];
+import { getUserFromToken } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,11 +14,8 @@ export async function GET(request: NextRequest) {
 
     const token = authHeader.split(' ')[1];
 
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as any;
-
-    // Find user
-    const user = users.find(u => u.id === decoded.id);
+    // Get user from token using the auth utility
+    const user = await getUserFromToken(token);
 
     if (!user || !user.isActive) {
       return NextResponse.json(
@@ -42,12 +24,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Return user data without password
-    const { password: _, ...userWithoutPassword } = user;
-
     return NextResponse.json({
       success: true,
-      user: userWithoutPassword
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        isActive: user.isActive,
+        avatar: user.avatar,
+        points: user.points,
+        level: user.level,
+        streak: user.streak
+      }
     });
 
   } catch (error) {

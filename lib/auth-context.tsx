@@ -8,9 +8,12 @@ interface User {
   email: string
   firstName: string
   lastName: string
-  role: 'user' | 'admin' | 'super_admin'
+  role: 'USER' | 'ADMIN' | 'SUPER_ADMIN'
   isActive: boolean
-  createdAt: string
+  avatar?: string
+  points?: number
+  level?: number
+  streak?: number
 }
 
 interface AuthContextType {
@@ -51,7 +54,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (response.ok) {
         const data = await response.json()
-        setUser(data.user)
+        if (data.success) {
+          setUser(data.user)
+        } else {
+          // Token is invalid
+          localStorage.removeItem('token')
+          setToken(null)
+        }
       } else {
         // Token is invalid
         localStorage.removeItem('token')

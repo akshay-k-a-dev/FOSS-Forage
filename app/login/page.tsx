@@ -10,9 +10,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
+import { useAuth } from "@/lib/auth-context"
 
 export default function LoginPage() {
   const router = useRouter()
+  const { login } = useAuth()
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -30,14 +32,42 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    if (!formData.email || !formData.password) {
+      toast.error('Please fill in all fields')
+      return
+    }
+
     try {
       setLoading(true)
-      // Mock successful login
-      toast.success('Logged in successfully!')
-      router.push('/forum')
+      
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Store token and update auth context
+        login(data.token, data.user)
+        
+        toast.success('Logged in successfully!')
+        
+        // Role-based redirection
+        if (['ADMIN', 'SUPER_ADMIN'].includes(data.user.role)) {
+          router.push('/admin')
+        } else {
+          router.push('/dashboard')
+        }
+      } else {
+        toast.error(data.message || 'Login failed')
+      }
     } catch (error) {
       console.error('Login error:', error)
-      toast.error('Login failed')
+      toast.error('Login failed. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -76,6 +106,7 @@ export default function LoginPage() {
                       onChange={handleChange}
                       required
                       className="pl-9"
+                      disabled={loading}
                     />
                   </div>
                 </div>
@@ -93,6 +124,7 @@ export default function LoginPage() {
                       required
                       minLength={6}
                       className="pl-9"
+                      disabled={loading}
                     />
                   </div>
                 </div>
