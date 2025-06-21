@@ -60,12 +60,14 @@ export default function DiscussionPage() {
   const [replyLoading, setReplyLoading] = useState(false)
 
   useEffect(() => {
-    if (params.id) {
+    if (params?.id) {
       fetchDiscussion()
     }
-  }, [params.id])
+  }, [params?.id])
 
   const fetchDiscussion = async () => {
+    if (!params?.id) return
+    
     try {
       const response = await fetch(`/api/forum/discussions/${params.id}`)
       
@@ -106,6 +108,11 @@ export default function DiscussionPage() {
 
     if (!replyContent.trim()) {
       toast.error('Please enter a reply')
+      return
+    }
+
+    if (!params?.id) {
+      toast.error('Invalid discussion')
       return
     }
 
