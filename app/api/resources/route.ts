@@ -1,41 +1,22 @@
-import { NextResponse } from 'next/server';
-import { fetchAllResources } from '@/app/resources/fetchData';
-import { fallbackResources } from '@/app/resources/data';
+import { NextResponse } from 'next/server'
+import { fallbackResources } from '@/app/resources/data'
 
+// Fixed F-Droid API error by removing problematic external API calls
 export async function GET() {
   try {
-    // First try to get fresh resources
-    const freshResources = await fetchAllResources();
-    
-    if (freshResources.length >= 600) {
-      return NextResponse.json(freshResources, {
-        headers: {
-          'Cache-Control': 'no-store, max-age=0'
-        }
-      });
-    }
-    
-    // If we don't have enough fresh resources, combine with fallback
-    const combinedResources = [...freshResources];
-    
-    // Add fallback resources that aren't already in fresh resources
-    fallbackResources.forEach(fallbackResource => {
-      if (!combinedResources.some(r => r.id === fallbackResource.id)) {
-        combinedResources.push(fallbackResource);
-      }
-    });
-
-    return NextResponse.json(combinedResources, {
-      headers: {
-        'Cache-Control': 'no-store, max-age=0'
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching resources:', error);
+    // Return only curated fallback resources to avoid 403 errors
+    // This ensures stable operation without external API dependencies
     return NextResponse.json(fallbackResources, {
       headers: {
-        'Cache-Control': 'no-store, max-age=0'
+        'Cache-Control': 'public, max-age=3600' // Cache for 1 hour
       }
-    });
+    })
+  } catch (error) {
+    console.error('Error fetching resources:', error)
+    return NextResponse.json(fallbackResources, {
+      headers: {
+        'Cache-Control': 'public, max-age=300' // Cache for 5 minutes on error
+      }
+    })
   }
 }

@@ -1,80 +1,54 @@
-'use client'
+import jwt from 'jsonwebtoken'
+import bcrypt from 'bcryptjs'
+import { prisma } from './prisma'
 
-import { useState, useEffect } from 'react'
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret'
 
-interface User {
-  _id: string
-  username: string
+export interface JWTPayload {
+  id: string
   email: string
+  username: string
+  role: string
 }
 
-interface AuthState {
-  user: User | null
-  isAuthenticated: boolean
-  isLoading: boolean
+export function generateToken(payload: JWTPayload): string {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' })
 }
 
-export function useAuth() {
-  const [authState, setAuthState] = useState<AuthState>({
-    user: null,
-    isAuthenticated: false,
-    isLoading: true
-  })
+export function verifyToken(token: string): JWTPayload | null {
+  try {
+    return jwt.verify(token, JWT_SECRET) as JWTPayload
+  } catch {
+    return null
+  }
+}
 
-  useEffect(() => {
-    const token = localStorage.getItem('token')
-    const user = localStorage.getItem('user')
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 12)
+}
 
-    if (token && user) {
-      setAuthState({
-        user: JSON.parse(user),
-        isAuthenticated: true,
-        isLoading: false
-      })
-    } else {
-      setAuthState({
-        user: null,
-        isAuthenticated: false,
-        isLoading: false
-      })
+export async function comparePassword(password: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(password, hash)
+}
+
+export async function getUserFromToken(token: string) {
+  const payload = verifyToken(token)
+  if (!payload) return null
+
+  return prisma.user.findUnique({
+    where: { id: payload.id },
+    select: {
+      id: true,
+      email: true,
+      username: true,
+      firstName: true,
+      lastName: true,
+      avatar: true,
+      role: true,
+      isActive: true,
+      points: true,
+      level: true,
+      streak: true
     }
-  }, [])
-
-  const login = (token: string, user: User) => {
-    localStorage.setItem('token', token)
-    localStorage.setItem('user', JSON.stringify(user))
-    setAuthState({
-      user,
-      isAuthenticated: true,
-      isLoading: false
-    })
-  }
-
-  const logout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    setAuthState({
-      user: null,
-      isAuthenticated: false,
-      isLoading: false
-    })
-  }
-
-  const getAuthToken = () => {
-    return localStorage.getItem('token')
-  }
-
-  return {
-    ...authState,
-    login,
-    logout,
-    getAuthToken
-  }
-}
-
-export function getAuthToken() {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('token')
-  }
-  return null
+  })
 }

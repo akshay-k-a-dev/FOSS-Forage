@@ -1,0 +1,314 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  username          String   @unique
+  password          String
+  firstName         String?
+  lastName          String?
+  avatar            String?
+  bio               String?
+  role              Role     @default(USER)
+  isActive          Boolean  @default(true)
+  isEmailVerified   Boolean  @default(false)
+  emailVerificationToken String?
+  passwordResetToken String?
+  passwordResetExpires DateTime?
+  points            Int      @default(0)
+  level             Int      @default(1)
+  streak            Int      @default(0)
+  lastActivity      DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  discussions       Discussion[]
+  replies           Reply[]
+  blogPosts         BlogPost[]
+  comments          Comment[]
+  likes             Like[]
+  achievements      UserAchievement[]
+  activities        Activity[]
+  moderationLogs    ModerationLog[]
+
+  @@map("users")
+}
+
+model Discussion {
+  id          String   @id @default(cuid())
+  title       String
+  content     String
+  slug        String   @unique
+  category    String
+  tags        String[] // JSON array
+  views       Int      @default(0)
+  isPinned    Boolean  @default(false)
+  isLocked    Boolean  @default(false)
+  status      DiscussionStatus @default(ACTIVE)
+  authorId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  author      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  replies     Reply[]
+  likes       Like[]
+
+  @@map("discussions")
+}
+
+model Reply {
+  id           String   @id @default(cuid())
+  content      String
+  discussionId String
+  authorId     String
+  parentId     String?
+  isEdited     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  discussion   Discussion @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  author       User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent       Reply?     @relation("ReplyToReply", fields: [parentId], references: [id])
+  children     Reply[]    @relation("ReplyToReply")
+  likes        Like[]
+
+  @@map("replies")
+}
+
+model BlogPost {
+  id          String   @id @default(cuid())
+  title       String
+  content     String
+  excerpt     String?
+  slug        String   @unique
+  category    String
+  tags        String[] // JSON array
+  featuredImage String?
+  status      PostStatus @default(DRAFT)
+  views       Int      @default(0)
+  authorId    String
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments    Comment[]
+  likes       Like[]
+
+  @@map("blog_posts")
+}
+
+model Comment {
+  id         String   @id @default(cuid())
+  content    String
+  postId     String
+  authorId   String
+  parentId   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  post       BlogPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent     Comment? @relation("CommentToComment", fields: [parentId], references: [id])
+  children   Comment[] @relation("CommentToComment")
+  likes      Like[]
+
+  @@map("comments")
+}
+
+model Like {
+  id           String   @id @default(cuid())
+  userId       String
+  targetId     String
+  targetType   LikeType
+  createdAt    DateTime @default(now())
+
+  // Relations
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  discussion   Discussion?  @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  reply        Reply?       @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  blogPost     BlogPost?    @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  comment      Comment?     @relation(fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, targetId, targetType])
+  @@map("likes")
+}
+
+model Achievement {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  icon        String
+  points      Int
+  category    String
+  condition   String   // JSON condition
+  createdAt   DateTime @default(now())
+
+  // Relations
+  userAchievements UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  earnedAt      DateTime @default(now())
+
+  // Relations
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
+
+model Activity {
+  id          String       @id @default(cuid())
+  userId      String
+  type        ActivityType
+  description String
+  points      Int          @default(0)
+  metadata    String?      // JSON metadata
+  createdAt   DateTime     @default(now())
+
+  // Relations
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("activities")
+}
+
+model Tutorial {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  videoUrl    String
+  category    String
+  difficulty  Difficulty
+  duration    String
+  tags        String[] // JSON array
+  views       Int      @default(0)
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("tutorials")
+}
+
+model Event {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  startDate   DateTime
+  endDate     DateTime
+  location    String?
+  isOnline    Boolean  @default(false)
+  meetingLink String?
+  image       String?
+  maxAttendees Int?
+  registrations String[] // JSON array of user IDs
+  status      EventStatus @default(UPCOMING)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("events")
+}
+
+model News {
+  id          String   @id @default(cuid())
+  title       String
+  content     String
+  excerpt     String?
+  image       String?
+  category    String
+  tags        String[] // JSON array
+  isPublished Boolean  @default(false)
+  authorId    String?
+  publishedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("news")
+}
+
+model ModerationLog {
+  id          String   @id @default(cuid())
+  action      String
+  targetType  String
+  targetId    String
+  reason      String?
+  moderatorId String
+  createdAt   DateTime @default(now())
+
+  // Relations
+  moderator   User     @relation(fields: [moderatorId], references: [id])
+
+  @@map("moderation_logs")
+}
+
+enum Role {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum DiscussionStatus {
+  ACTIVE
+  CLOSED
+  ARCHIVED
+  DELETED
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+  DELETED
+}
+
+enum LikeType {
+  DISCUSSION
+  REPLY
+  BLOG_POST
+  COMMENT
+}
+
+enum ActivityType {
+  DISCUSSION_CREATED
+  REPLY_POSTED
+  BLOG_POST_CREATED
+  COMMENT_POSTED
+  LIKE_GIVEN
+  ACHIEVEMENT_EARNED
+  LOGIN
+  PROFILE_UPDATED
+}
+
+enum Difficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum EventStatus {
+  UPCOMING
+  ONGOING
+  COMPLETED
+  CANCELLED
+}

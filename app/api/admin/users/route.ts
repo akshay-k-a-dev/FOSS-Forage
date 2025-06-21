@@ -1,108 +1,96 @@
-import { NextRequest, NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
-
-// Mock user database
-let users = [
-  {
-    id: '1',
-    email: 'akshayka@mamocollege.org',
-    username: 'akshayka',
-    password: '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj/VcSAg/9qK',
-    role: 'super_admin',
-    firstName: 'Akshay',
-    lastName: 'K A',
-    isActive: true,
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: '2',
-    email: 'admin@example.com',
-    username: 'admin',
-    password: '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj/VcSAg/9qK',
-    role: 'admin',
-    firstName: 'Admin',
-    lastName: 'User',
-    isActive: true,
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: '3',
-    email: 'user@example.com',
-    username: 'user',
-    password: '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj/VcSAg/9qK',
-    role: 'user',
-    firstName: 'Regular',
-    lastName: 'User',
-    isActive: true,
-    createdAt: new Date().toISOString()
-  }
-];
-
-function verifyAuth(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null;
-  }
-
-  const token = authHeader.split(' ')[1];
-
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as any;
-    const user = users.find(u => u.id === decoded.id);
-    return user;
-  } catch (error) {
-    return null;
-  }
-}
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { getUserFromToken } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
   try {
-    const user = verifyAuth(request);
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader) {
+      return NextResponse.json(
+        { success: false, message: 'Authorization required' },
+        { status: 401 }
+      )
+    }
 
-    if (!user || !['super_admin', 'admin'].includes(user.role)) {
+    const token = authHeader.split(' ')[1]
+    const user = await getUserFromToken(token)
+    
+    if (!user || !['ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 403 }
-      );
+      )
     }
 
-    // Return users without passwords
-    const usersWithoutPasswords = users.map(({ password, ...user }) => user);
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        isActive: true,
+        points: true,
+        level: true,
+        createdAt: true,
+        lastActivity: true,
+        _count: {
+          select: {
+            discussions: true,
+            replies: true,
+            blogPosts: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
 
     return NextResponse.json({
       success: true,
-      users: usersWithoutPasswords
-    });
+      users
+    })
 
   } catch (error) {
-    console.error('Get users error:', error);
+    console.error('Get users error:', error)
     return NextResponse.json(
       { success: false, message: 'Internal server error' },
       { status: 500 }
-    );
+    )
   }
 }
 
 export async function PATCH(request: NextRequest) {
   try {
-    const user = verifyAuth(request);
-
-    if (!user || user.role !== 'super_admin') {
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader) {
       return NextResponse.json(
-        { success: false, message: 'Unauthorized - Super Admin access required' },
-        { status: 403 }
-      );
+        { success: false, message: 'Authorization required' },
+        { status: 401 }
+      )
     }
 
-    const { userId, action, role } = await request.json();
+    const token = authHeader.split(' ')[1]
+    const user = await getUserFromToken(token)
+    
+    if (!user || user.role !== 'SUPER_ADMIN') {
+      return NextResponse.json(
+        { success: false, message: 'Super Admin access required' },
+        { status: 403 }
+      )
+    }
 
-    const targetUser = users.find(u => u.id === userId);
+    const { userId, action, role } = await request.json()
+
+    const targetUser = await prisma.user.findUnique({
+      where: { id: userId }
+    })
+
     if (!targetUser) {
       return NextResponse.json(
         { success: false, message: 'User not found' },
         { status: 404 }
-      );
+      )
     }
 
     // Prevent super admin from modifying themselves
@@ -110,46 +98,75 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json(
         { success: false, message: 'Cannot modify your own account' },
         { status: 400 }
-      );
+      )
     }
+
+    let updateData: any = {}
 
     switch (action) {
       case 'changeRole':
-        if (!['user', 'admin', 'super_admin'].includes(role)) {
+        if (!['USER', 'ADMIN', 'SUPER_ADMIN'].includes(role)) {
           return NextResponse.json(
             { success: false, message: 'Invalid role' },
             { status: 400 }
-          );
+          )
         }
-        targetUser.role = role;
-        break;
+        updateData.role = role
+        break
 
       case 'ban':
-        targetUser.isActive = false;
-        break;
+        updateData.isActive = false
+        break
 
       case 'unban':
-        targetUser.isActive = true;
-        break;
+        updateData.isActive = true
+        break
 
       default:
         return NextResponse.json(
           { success: false, message: 'Invalid action' },
           { status: 400 }
-        );
+        )
     }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        isActive: true,
+        points: true,
+        level: true
+      }
+    })
+
+    // Log moderation action
+    await prisma.moderationLog.create({
+      data: {
+        action,
+        targetType: 'USER',
+        targetId: userId,
+        reason: `${action} performed by admin`,
+        moderatorId: user.id
+      }
+    })
 
     return NextResponse.json({
       success: true,
       message: `User ${action} successful`,
-      user: { ...targetUser, password: undefined }
-    });
+      user: updatedUser
+    })
 
   } catch (error) {
-    console.error('Update user error:', error);
+    console.error('Update user error:', error)
     return NextResponse.json(
       { success: false, message: 'Internal server error' },
       { status: 500 }
-    );
+    )
   }
 }
