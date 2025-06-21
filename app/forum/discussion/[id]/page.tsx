@@ -60,7 +60,7 @@ export default function DiscussionPage() {
   const [replyLoading, setReplyLoading] = useState(false)
 
   useEffect(() => {
-    if (params?.id) {
+    if (params && params.id) {
       fetchDiscussion()
     }
   }, [params?.id])

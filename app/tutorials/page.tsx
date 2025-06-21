@@ -34,10 +34,15 @@ export default function TutorialsPage() {
 
   const fetchTutorials = async () => {
     try {
-      const response = await fetch('/api/tutorials');
+      // Use window.location.origin to ensure proper URL resolution in WebContainer environments
+      const apiUrl = typeof window !== 'undefined' 
+        ? `${window.location.origin}/api/tutorials`
+        : '/api/tutorials';
+        
+      const response = await fetch(apiUrl);
       
       if (!response.ok) {
-        throw new Error('Failed to fetch tutorials');
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
