@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getUserFromToken } from '@/lib/auth'
-import { awardPoints } from '@/lib/points'
 
 export async function GET(request: NextRequest) {
   try {
@@ -66,21 +65,25 @@ export async function GET(request: NextRequest) {
           },
           orderBy: { createdAt: 'desc' },
           take: 1
-        },
-        _count: {
-          select: {
-            replies: true,
-            likes: true
-          }
         }
       }
     })
 
     const total = await prisma.discussion.count({ where })
 
+    // Parse tags and add counts
+    const discussionsWithParsedData = discussions.map(discussion => ({
+      ...discussion,
+      tags: discussion.tags ? JSON.parse(discussion.tags) : [],
+      _count: {
+        replies: discussion.replies.length,
+        likes: 0 // Will be implemented when likes are added
+      }
+    }))
+
     return NextResponse.json({
       success: true,
-      data: discussions,
+      data: discussionsWithParsedData,
       pagination: {
         page,
         limit,
@@ -138,7 +141,7 @@ export async function POST(request: NextRequest) {
         content,
         slug,
         category,
-        tags: tags || [],
+        tags: JSON.stringify(tags || []), // Store as JSON string
         authorId: user.id
       },
       include: {
@@ -149,23 +152,21 @@ export async function POST(request: NextRequest) {
             avatar: true,
             level: true
           }
-        },
-        _count: {
-          select: {
-            replies: true,
-            likes: true
-          }
         }
       }
     })
 
-    // Award points for creating discussion
-    await awardPoints(user.id, 'DISCUSSION_CREATED', `Created discussion: ${title}`)
-
     return NextResponse.json({
       success: true,
       message: 'Discussion created successfully',
-      data: discussion
+      data: {
+        ...discussion,
+        tags: JSON.parse(discussion.tags),
+        _count: {
+          replies: 0,
+          likes: 0
+        }
+      }
     }, { status: 201 })
 
   } catch (error) {
