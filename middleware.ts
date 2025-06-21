@@ -1,37 +1,64 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import jwt from 'jsonwebtoken'
 
-// List of known routes in your application
-const KNOWN_ROUTES = [
-  '/',
-  '/about',
+// List of protected routes that require authentication
+const PROTECTED_ROUTES = [
+  '/dashboard',
+  '/profile',
+  '/admin'
+]
+
+// List of admin-only routes
+const ADMIN_ROUTES = [
+  '/admin'
+]
+
+// List of routes that should redirect to dashboard if already authenticated
+const AUTH_ROUTES = [
   '/login',
   '/register',
-  '/forum',
-  '/forgot-password',
-  '/campus',
   '/signup'
 ]
 
 export function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname
+  const token = request.cookies.get('token')?.value || 
+                request.headers.get('authorization')?.replace('Bearer ', '')
 
-  // Check if the path starts with any known route
-  const isKnownRoute = KNOWN_ROUTES.some(route => 
-    path === route || path.startsWith(`${route}/`)
-  )
+  // Check if user is authenticated
+  let user = null
+  if (token) {
+    try {
+      user = jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret') as any
+    } catch (error) {
+      // Invalid token
+      user = null
+    }
+  }
 
-  // Check if the path is requesting an API route or static file
-  const isApiRoute = path.startsWith('/api/')
-  const isStaticFile = path.includes('.')
-  const isNextInternal = path.startsWith('/_next/')
-
-  // Allow all known routes, API routes, static files, and Next.js internal routes
-  if (isKnownRoute || isApiRoute || isStaticFile || isNextInternal) {
+  // Redirect authenticated users away from auth pages
+  if (AUTH_ROUTES.some(route => path.startsWith(route))) {
+    if (user) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
     return NextResponse.next()
   }
 
-  // For unknown routes, let Next.js handle it with the not-found page
+  // Check if route requires authentication
+  if (PROTECTED_ROUTES.some(route => path.startsWith(route))) {
+    if (!user) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+
+    // Check admin routes
+    if (ADMIN_ROUTES.some(route => path.startsWith(route))) {
+      if (!['admin', 'super_admin'].includes(user.role)) {
+        return NextResponse.redirect(new URL('/dashboard', request.url))
+      }
+    }
+  }
+
   return NextResponse.next()
 }
 
