@@ -1,138 +1,189 @@
 "use client";
 
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import Image from "next/image";
-import { Calendar, MapPin, Ticket, Trophy } from "lucide-react";
+import { Calendar, MapPin, Ticket, Trophy, Users } from "lucide-react";
 
-const upcomingEvents = [
-  {
-    id: 1,
-    title: "AI Summit 2024",
-    date: "March 15, 2024",
-    description: "Join industry leaders for a deep dive into the latest AI trends.",
-    image: "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?q=80&w=800",
-    registrationLink: "/register/1",
-    location: "Silicon Valley Convention Center",
-    price: "$299",
-  },
-  {
-    id: 2,
-    title: "Web3 & Blockchain Workshop",
-    date: "April 5, 2024",
-    description: "Hands-on workshop covering blockchain fundamentals.",
-    image: "https://images.unsplash.com/photo-1516321165247-4aa89a48be28?q=80&w=800",
-    registrationLink: "/register/2",
-    location: "Tech Hub Downtown",
-    price: "$149",
-  },
-  {
-    id: 3,
-    title: "DevOps Conference 2024",
-    date: "May 20, 2024",
-    description: "Learn about the latest in CI/CD and cloud infrastructure.",
-    image: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=800",
-    registrationLink: "/register/3",
-    location: "Innovation Center",
-    price: "$199",
-  }
-];
-
-const pastEvents = [
-  {
-    id: 101,
-    title: "Hackathon 2023",
-    date: "December 10, 2023",
-    description: "Over 200 developers collaborated for 48 hours.",
-    image: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?q=80&w=800",
-    photos: [
-      "https://images.unsplash.com/photo-1515187029135-18ee286d815b?q=80&w=800",
-      "https://images.unsplash.com/photo-1531482615713-2afd69097998?q=80&w=800",
-      "https://images.unsplash.com/photo-1517048676732-d65bc937f952?q=80&w=800"
-    ],
-    highlights: "First prize: $10,000",
-  },
-  {
-    id: 102,
-    title: "Cloud Computing Summit",
-    date: "November 15, 2023",
-    description: "A comprehensive overview of modern cloud architecture.",
-    image: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=800",
-    photos: [
-      "https://images.unsplash.com/photo-1523240795612-9a054b0db644?q=80&w=800",
-      "https://images.unsplash.com/photo-1528901166007-3784c7dd3653?q=80&w=800",
-      "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?q=80&w=800"
-    ],
-    highlights: "500+ attendees",
-  }
-];
-
-function EventCard({ event, type }: { event: any; type: 'upcoming' | 'past' }) {
-  return (
-    <Card className="overflow-hidden">
-      <div className="relative h-48 w-full">
-        <Image
-          src={event.image}
-          alt={event.title}
-          fill
-          className="object-cover"
-        />
-      </div>
-      <CardHeader>
-        <CardTitle className="text-xl">{event.title}</CardTitle>
-        <div className="mt-2 space-y-2">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            <span>{event.date}</span>
-          </div>
-          {type === 'upcoming' ? (
-            <>
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4" />
-                <span>{event.location}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Ticket className="h-4 w-4" />
-                <span>{event.price}</span>
-              </div>
-            </>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Trophy className="h-4 w-4" />
-              <span>{event.highlights}</span>
-            </div>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="mb-4">{event.description}</div>
-        {type === 'upcoming' ? (
-          <Button className="w-full" asChild>
-            <a href={event.registrationLink}>Register Now</a>
-          </Button>
-        ) : (
-          event.photos && (
-            <div className="grid grid-cols-3 gap-2">
-              {event.photos.map((photo: string, index: number) => (
-                <div key={index} className="relative aspect-square rounded-lg overflow-hidden">
-                  <Image
-                    src={photo}
-                    alt={`${event.title} photo ${index + 1}`}
-                    fill
-                    className="object-cover hover:scale-110 transition-transform"
-                  />
-                </div>
-              ))}
-            </div>
-          )
-        )}
-      </CardContent>
-    </Card>
-  );
+interface Event {
+  id: string;
+  title: string;
+  description: string;
+  startDate: string;
+  endDate: string;
+  location?: string;
+  isOnline: boolean;
+  meetingLink?: string;
+  image?: string;
+  maxAttendees?: number;
+  registrations: string;
+  status: string;
 }
 
 export default function EventsPage() {
+  const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([]);
+  const [pastEvents, setPastEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+
+  const fetchEvents = async () => {
+    try {
+      const [upcomingResponse, pastResponse] = await Promise.all([
+        fetch('/api/events?type=upcoming'),
+        fetch('/api/events?type=past')
+      ]);
+
+      const upcomingData = await upcomingResponse.json();
+      const pastData = await pastResponse.json();
+
+      if (upcomingData.success) {
+        setUpcomingEvents(upcomingData.data || []);
+      }
+
+      if (pastData.success) {
+        setPastEvents(pastData.data || []);
+      }
+
+      if (!upcomingData.success && !pastData.success) {
+        setError('Failed to load events');
+      }
+    } catch (error) {
+      console.error('Error fetching events:', error);
+      setError('Failed to load events');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const getRegistrationCount = (registrations: string) => {
+    try {
+      const regs = JSON.parse(registrations || '[]');
+      return Array.isArray(regs) ? regs.length : 0;
+    } catch {
+      return 0;
+    }
+  };
+
+  function EventCard({ event, type }: { event: Event; type: 'upcoming' | 'past' }) {
+    const registrationCount = getRegistrationCount(event.registrations);
+
+    return (
+      <Card className="overflow-hidden">
+        {event.image && (
+          <div className="relative h-48 w-full">
+            <img
+              src={event.image}
+              alt={event.title}
+              className="object-cover w-full h-full"
+            />
+          </div>
+        )}
+        <CardHeader>
+          <CardTitle className="text-xl">{event.title}</CardTitle>
+          <div className="mt-2 space-y-2">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              <span>{formatDate(event.startDate)}</span>
+            </div>
+            {type === 'upcoming' ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  <span>{event.isOnline ? 'Online Event' : event.location || 'Location TBA'}</span>
+                </div>
+                {event.maxAttendees && (
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    <span>{registrationCount}/{event.maxAttendees} registered</span>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Trophy className="h-4 w-4" />
+                <span>{registrationCount} attendees</span>
+              </div>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-4">{event.description}</div>
+          {type === 'upcoming' ? (
+            <Button className="w-full">
+              {event.isOnline ? 'Join Online' : 'Register Now'}
+            </Button>
+          ) : (
+            <div className="text-center">
+              <span className="text-sm text-muted-foreground">Event Completed</span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="container mx-auto py-8">
+        <h1 className="text-4xl font-bold mb-8">Events</h1>
+        
+        <Tabs defaultValue="upcoming" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-8">
+            <TabsTrigger value="upcoming">Upcoming Events</TabsTrigger>
+            <TabsTrigger value="past">Past Events</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="upcoming">
+            <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              {[...Array(3)].map((_, i) => (
+                <Card key={i} className="animate-pulse">
+                  <div className="h-48 bg-gray-200 dark:bg-gray-700"></div>
+                  <CardHeader>
+                    <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-5/6"></div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto py-8">
+        <h1 className="text-4xl font-bold mb-8">Events</h1>
+        <div className="flex flex-col items-center justify-center py-12">
+          <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Error Loading Events</h3>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button onClick={fetchEvents} variant="outline">
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto py-8">
       <h1 className="text-4xl font-bold mb-8">Events</h1>
@@ -144,19 +195,39 @@ export default function EventsPage() {
         </TabsList>
 
         <TabsContent value="upcoming">
-          <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-            {upcomingEvents.map((event) => (
-              <EventCard key={event.id} event={event} type="upcoming" />
-            ))}
-          </div>
+          {upcomingEvents.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Nothing to show yet</h3>
+              <p className="text-muted-foreground">
+                No upcoming events are scheduled at the moment. Check back later!
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              {upcomingEvents.map((event) => (
+                <EventCard key={event.id} event={event} type="upcoming" />
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="past">
-          <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-            {pastEvents.map((event) => (
-              <EventCard key={event.id} event={event} type="past" />
-            ))}
-          </div>
+          {pastEvents.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Trophy className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Nothing to show yet</h3>
+              <p className="text-muted-foreground">
+                No past events to display. Check back after we host some events!
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+              {pastEvents.map((event) => (
+                <EventCard key={event.id} event={event} type="past" />
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

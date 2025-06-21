@@ -6,7 +6,8 @@ import jwt from 'jsonwebtoken'
 const PROTECTED_ROUTES = [
   '/dashboard',
   '/profile',
-  '/admin'
+  '/admin',
+  '/forum/new'
 ]
 
 // List of admin-only routes
@@ -53,7 +54,7 @@ export function middleware(request: NextRequest) {
 
     // Check admin routes
     if (ADMIN_ROUTES.some(route => path.startsWith(route))) {
-      if (!['admin', 'super_admin'].includes(user.role)) {
+      if (!['ADMIN', 'SUPER_ADMIN'].includes(user.role)) {
         return NextResponse.redirect(new URL('/dashboard', request.url))
       }
     }

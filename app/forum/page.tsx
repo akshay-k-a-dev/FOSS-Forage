@@ -80,9 +80,16 @@ interface Discussion {
   }
 }
 
+interface ForumStats {
+  users: number
+  topics: number
+  replies: number
+}
+
 export default function ForumPage() {
   const { isAuthenticated } = useAuth()
   const [discussions, setDiscussions] = useState<Discussion[]>([])
+  const [stats, setStats] = useState<ForumStats>({ users: 0, topics: 0, replies: 0 })
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
@@ -90,6 +97,7 @@ export default function ForumPage() {
 
   useEffect(() => {
     fetchDiscussions()
+    fetchStats()
   }, [selectedCategory, sortBy])
 
   const fetchDiscussions = async () => {
@@ -110,6 +118,19 @@ export default function ForumPage() {
       toast.error('Failed to load discussions')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchStats = async () => {
+    try {
+      const response = await fetch('/api/forum/stats')
+      const data = await response.json()
+
+      if (data.success) {
+        setStats(data.data)
+      }
+    } catch (error) {
+      console.error('Error fetching forum stats:', error)
     }
   }
 
@@ -289,15 +310,15 @@ export default function ForumPage() {
             <div className="space-y-3 md:space-y-4">
               <div className="flex justify-between items-center text-sm md:text-base">
                 <span className="text-muted-foreground">Members</span>
-                <span className="font-medium">1,234</span>
+                <span className="font-medium">{stats.users.toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-center text-sm md:text-base">
                 <span className="text-muted-foreground">Topics</span>
-                <span className="font-medium">{discussions.length}</span>
+                <span className="font-medium">{stats.topics.toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-center text-sm md:text-base">
                 <span className="text-muted-foreground">Replies</span>
-                <span className="font-medium">{discussions.reduce((acc, d) => acc + d._count.replies, 0)}</span>
+                <span className="font-medium">{stats.replies.toLocaleString()}</span>
               </div>
             </div>
           </Card>
